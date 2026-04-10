@@ -95,6 +95,9 @@ def hash_prompt(prompt: str) -> str:
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 
 _RATE_LIMIT_WINDOW = 60  # seconds
+# 20 requests per window per org — a burst guard for synchronous usage.
+# This is not the same as the monthly draft quota shown on billing plans
+# (which is enforced at the subscription level). Adjust per plan tier if needed.
 _RATE_LIMIT_MAX = 20  # requests per window per org
 
 

@@ -50,7 +50,7 @@ export default function NewSystemPage() {
     defaultValues: { category: 'high_risk' },
   })
 
-  const intentedPurposeValue = watch('intended_purpose')
+  const intendedPurposeValue = watch('intended_purpose')
 
   const createMutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -72,10 +72,10 @@ export default function NewSystemPage() {
   })
 
   async function validatePurpose() {
-    if (!intentedPurposeValue) return
+    if (!intendedPurposeValue) return
     setIsValidating(true)
     try {
-      const res = await systemApi.validatePurpose(intentedPurposeValue)
+      const res = await systemApi.validatePurpose(intendedPurposeValue)
       setPurposeResult(res.data)
     } catch {
       toast({ variant: 'destructive', title: 'Validation failed' })
@@ -133,7 +133,7 @@ export default function NewSystemPage() {
                 variant="outline"
                 size="sm"
                 onClick={validatePurpose}
-                disabled={isValidating || !intentedPurposeValue}
+                disabled={isValidating || !intendedPurposeValue}
               >
                 {isValidating ? 'Validating…' : 'Validate against Annex III'}
               </Button>

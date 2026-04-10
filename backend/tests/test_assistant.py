@@ -78,7 +78,7 @@ def test_log_usage_handles_db_error_gracefully():
 
     db = MagicMock()
     db.add.side_effect = Exception("DB error")
-    with pytest.raises(Exception, match="DB error"):  # noqa: B017
+    with pytest.raises(Exception, match="DB error"):
         log_usage(db, feature="test", model="gpt-4o", prompt_tokens=0, completion_tokens=0)
 
 
