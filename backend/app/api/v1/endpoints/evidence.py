@@ -1,5 +1,7 @@
 import hashlib
 import logging
+import os
+import re
 import uuid
 
 import boto3
@@ -16,6 +18,39 @@ from app.schemas.evidence import EvidenceCreate, EvidenceRead
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Maximum allowed file size: 50 MB
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
+# Allowed MIME types for evidence uploads
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "text/plain",
+    "text/csv",
+    "application/json",
+    "text/html",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "application/zip",
+}
+
+
+def _sanitize_filename(filename: str | None) -> str:
+    """Remove path traversal characters and sanitize the filename for safe S3 storage."""
+    if not filename:
+        return "upload"
+    # Strip any directory components
+    filename = os.path.basename(filename)
+    # Allow only alphanumeric, dots, dashes and underscores
+    filename = re.sub(r"[^\w.\-]", "_", filename)
+    # Prevent hidden files and double-extension tricks
+    filename = filename.lstrip(".")
+    return filename[:255] or "upload"
 
 
 def _get_s3_client():
@@ -70,11 +105,28 @@ async def upload_evidence(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    file_bytes = await file.read()
-    file_hash = hashlib.sha256(file_bytes).hexdigest()
-    s3_key = f"evidence/{uuid.uuid4()}/{file.filename}"
+    # Validate file size before reading entire body
+    file_bytes = await file.read(MAX_FILE_SIZE + 1)
+    if len(file_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)} MB",
+        )
 
-    _upload_to_s3(file_bytes, s3_key, file.content_type or "application/octet-stream")
+    # Validate MIME type
+    content_type = file.content_type or "application/octet-stream"
+    if content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"File type '{content_type}' is not allowed",
+        )
+
+    file_hash = hashlib.sha256(file_bytes).hexdigest()
+    safe_filename = _sanitize_filename(file.filename)
+    # Use a fresh UUID as the S3 object prefix so filenames never influence the key path
+    s3_key = f"evidence/{uuid.uuid4()}/{safe_filename}"
+
+    _upload_to_s3(file_bytes, s3_key, content_type)
 
     evidence = EvidenceAttachment(
         id=uuid.uuid4(),
@@ -82,10 +134,10 @@ async def upload_evidence(
         section_id=section_id,
         field_key=field_key,
         type="file",
-        filename=file.filename,
+        filename=safe_filename,
         s3_key=s3_key,
         file_hash=file_hash,
-        mime_type=file.content_type,
+        mime_type=content_type,
         size_bytes=len(file_bytes),
         uploaded_by=current_user.id,
     )

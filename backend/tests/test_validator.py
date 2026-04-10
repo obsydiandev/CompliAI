@@ -83,3 +83,38 @@ def test_multiple_triggers_detected():
     )
     assert result["is_high_risk"] is True
     assert len(result["triggers"]) >= 2
+
+
+# ── Filename sanitization tests ──────────────────────────────────────────────
+
+from app.api.v1.endpoints.evidence import _sanitize_filename  # noqa: E402
+
+
+def test_sanitize_filename_path_traversal():
+    assert "/" not in _sanitize_filename("../../etc/passwd")
+    assert "\\" not in _sanitize_filename("..\\windows\\system32\\config")
+
+
+def test_sanitize_filename_normal():
+    result = _sanitize_filename("report_2026.pdf")
+    assert result == "report_2026.pdf"
+
+
+def test_sanitize_filename_none():
+    assert _sanitize_filename(None) == "upload"
+
+
+def test_sanitize_filename_empty():
+    assert _sanitize_filename("") == "upload"
+
+
+def test_sanitize_filename_strips_leading_dot():
+    result = _sanitize_filename(".hidden_file")
+    assert not result.startswith(".")
+
+
+def test_sanitize_filename_special_chars():
+    result = _sanitize_filename("my file (1).pdf")
+    # Spaces replaced, no dangerous characters
+    assert " " not in result
+    assert "(" not in result
