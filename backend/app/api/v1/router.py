@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    admin,
     ai_systems,
     assistant,
     auth,
@@ -10,19 +11,28 @@ from app.api.v1.endpoints import (
     integrations,
     organizations,
     policy,
+    portfolio,
     sections,
+    sso,
     technical_files,
     templates,
 )
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(sso.router, prefix="/sso", tags=["sso"])
+api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
 api_router.include_router(integrations.org_router, prefix="/organizations", tags=["integrations"])
 api_router.include_router(
     policy.org_router,
     prefix="/organizations/{org_id}/policies",
     tags=["policy"],
+)
+api_router.include_router(
+    portfolio.router,
+    prefix="/organizations/{org_id}/reports",
+    tags=["portfolio"],
 )
 api_router.include_router(ai_systems.router, prefix="/systems", tags=["ai-systems"])
 api_router.include_router(

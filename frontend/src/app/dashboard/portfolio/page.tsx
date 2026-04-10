@@ -1,10 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { ShieldAlert, ShieldCheck, AlertTriangle, BarChart3, ArrowRight } from 'lucide-react'
+import { ShieldAlert, ShieldCheck, AlertTriangle, BarChart3, ArrowRight, Download } from 'lucide-react'
 import { useAuthStore } from '@/lib/auth'
-import { systemApi, policyApi } from '@/lib/api'
+import { systemApi, policyApi, portfolioApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -79,6 +80,7 @@ function SystemRow({
 
 export default function PortfolioPage() {
   const currentOrg = useAuthStore((s) => s.currentOrg)
+  const [isExporting, setIsExporting] = useState<'pdf' | 'csv' | null>(null)
 
   const { data: systems = [], isLoading } = useQuery({
     queryKey: ['systems', currentOrg?.id],
@@ -118,11 +120,61 @@ export default function PortfolioPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Portfolio Overview</h1>
-        <p className="text-muted-foreground text-sm">
-          Compliance status across all AI systems in {currentOrg?.name}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Portfolio Overview</h1>
+          <p className="text-muted-foreground text-sm">
+            Compliance status across all AI systems in {currentOrg?.name}
+          </p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isExporting !== null || !currentOrg}
+            onClick={async () => {
+              if (!currentOrg) return
+              setIsExporting('csv')
+              try {
+                const res = await portfolioApi.downloadCsv(currentOrg.id)
+                const url = URL.createObjectURL(new Blob([res.data as BlobPart]))
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `compliance_portfolio_${currentOrg.name}.csv`
+                a.click()
+                URL.revokeObjectURL(url)
+              } finally {
+                setIsExporting(null)
+              }
+            }}
+          >
+            <Download className="h-4 w-4 mr-1.5" />
+            {isExporting === 'csv' ? 'Exporting…' : 'CSV'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isExporting !== null || !currentOrg}
+            onClick={async () => {
+              if (!currentOrg) return
+              setIsExporting('pdf')
+              try {
+                const res = await portfolioApi.downloadPdf(currentOrg.id)
+                const url = URL.createObjectURL(new Blob([res.data as BlobPart], { type: 'application/pdf' }))
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `compliance_portfolio_${currentOrg.name}.pdf`
+                a.click()
+                URL.revokeObjectURL(url)
+              } finally {
+                setIsExporting(null)
+              }
+            }}
+          >
+            <Download className="h-4 w-4 mr-1.5" />
+            {isExporting === 'pdf' ? 'Exporting…' : 'PDF'}
+          </Button>
+        </div>
       </div>
 
       {/* KPI row */}

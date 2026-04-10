@@ -18,6 +18,19 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     ENVIRONMENT: str = "development"
 
+    # ── SSO / OIDC ────────────────────────────────────────────────────────────
+    # Google OIDC
+    SSO_GOOGLE_CLIENT_ID: str = ""
+    SSO_GOOGLE_CLIENT_SECRET: str = ""
+    # Microsoft / Azure AD OIDC
+    SSO_MICROSOFT_CLIENT_ID: str = ""
+    SSO_MICROSOFT_CLIENT_SECRET: str = ""
+    SSO_MICROSOFT_TENANT_ID: str = "common"
+    # Generic OIDC (Okta etc.)
+    SSO_OIDC_CLIENT_ID: str = ""
+    SSO_OIDC_CLIENT_SECRET: str = ""
+    SSO_OIDC_DISCOVERY_URL: str = ""  # e.g. https://dev-xxx.okta.com/.well-known/openid-configuration
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

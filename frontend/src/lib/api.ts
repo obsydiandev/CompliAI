@@ -321,4 +321,31 @@ export const templateApi = {
     }),
 }
 
+export const ssoApi = {
+  providers: () => api.get<import('@/types').SSOProvider[]>('/sso/providers'),
+  authorize: (provider: string, redirectUri: string, redirectAfter = '/dashboard') =>
+    api.get<{ auth_url: string; state: string }>(
+      `/sso/${provider}/authorize`,
+      { params: { redirect_uri: redirectUri, redirect_after: redirectAfter } },
+    ),
+  callback: (
+    provider: string,
+    body: { code: string; state: string; redirect_uri: string },
+  ) => api.post<{ access_token: string; token_type: string; redirect_to: string }>(
+    `/sso/${provider}/callback`,
+    body,
+  ),
+}
+
+export const portfolioApi = {
+  downloadPdf: (orgId: string) =>
+    api.get(`/organizations/${orgId}/reports/portfolio/pdf`, { responseType: 'blob' }),
+  downloadCsv: (orgId: string) =>
+    api.get(`/organizations/${orgId}/reports/portfolio/csv`, { responseType: 'blob' }),
+}
+
+export const adminApi = {
+  metrics: () => api.get<import('@/types').FounderMetrics>('/admin/metrics'),
+}
+
 export default api

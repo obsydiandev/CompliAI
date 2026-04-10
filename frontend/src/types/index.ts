@@ -333,3 +333,52 @@ export interface AIIAReport {
   annex_iii_applicable: boolean
   sections: Record<string, Record<string, unknown>>
 }
+
+// ── SSO (Epic 7) ───────────────────────────────────────────────────────────
+
+export interface SSOProvider {
+  provider: string
+  label: string
+  enabled: boolean
+}
+
+// ── Admin / Founder Metrics (Epic 8) ──────────────────────────────────────
+
+export interface PlanBreakdown {
+  starter: number
+  pro: number
+  enterprise: number
+}
+
+export interface OrgMetrics {
+  total: number
+  active_trials: number
+  paid: number
+  plan_breakdown: PlanBreakdown
+}
+
+export interface SystemMetrics {
+  total: number
+  high_risk: number
+  limited_risk: number
+  minimal_risk: number
+  avg_completeness_pct: number
+}
+
+export interface ComplianceMetricsAdmin {
+  total_open_violations: number
+  systems_at_risk: number
+}
+
+export interface GrowthMetrics {
+  new_orgs_last_30d: number
+  new_systems_last_30d: number
+}
+
+export interface FounderMetrics {
+  generated_at: string
+  orgs: OrgMetrics
+  systems: SystemMetrics
+  compliance: ComplianceMetricsAdmin
+  growth: GrowthMetrics
+}
