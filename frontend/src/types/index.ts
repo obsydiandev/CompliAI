@@ -479,3 +479,57 @@ export interface GeneratedRule {
   condition: Record<string, unknown>
   description: string
 }
+
+// ── Alert Config (T4.8) ──────────────────────────────────────────────────
+
+export interface AlertConfig {
+  email_enabled: boolean
+  email_recipients: string[]
+  slack_enabled: boolean
+  slack_webhook_url: string
+  webhook_enabled: boolean
+  webhook_url: string
+  min_severity: 'info' | 'warning' | 'blocking'
+}
+
+// ── API Keys (T6.4) ──────────────────────────────────────────────────────
+
+export interface ApiKeyRead {
+  id: string
+  name: string
+  key_prefix: string
+  is_active: boolean
+  last_used_at: string | null
+  expires_at: string | null
+  created_at: string
+}
+
+export interface ApiKeyCreated extends ApiKeyRead {
+  key: string  // shown only once
+}
+
+// ── Integration Health (T3.10) ───────────────────────────────────────────
+
+export interface IntegrationHealth {
+  integration_id: string
+  name: string
+  connector_type: string
+  status: string
+  auth_method: string
+  last_check_at: string | null
+  error_message: string | null
+  details: Record<string, string>
+}
+
+// ── NIST / Colorado Crosswalk (T6.3) ─────────────────────────────────────
+
+export interface RegulatoryMappingEntry {
+  framework: string
+  function?: string
+  category?: string
+  section?: string
+  title: string
+  annex_iv_sections: number[]
+  coverage: 'full' | 'partial' | 'supplementary'
+  notes: string
+}

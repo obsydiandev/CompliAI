@@ -214,3 +214,228 @@ class TestPeriodicComplianceTask:
         assert run_periodic_compliance_checks.name == (
             "app.tasks.compliance.run_periodic_compliance_checks"
         )
+
+
+# ── T2.9: Plan-aware rate limiting ────────────────────────────────────────────
+
+
+class TestPlanRateLimits:
+    def test_starter_limit_lower_than_pro(self):
+        from app.modules.ai_assistant.cache import _PLAN_RATE_LIMITS
+
+        assert _PLAN_RATE_LIMITS["starter"] < _PLAN_RATE_LIMITS["pro"]
+        assert _PLAN_RATE_LIMITS["pro"] < _PLAN_RATE_LIMITS["enterprise"]
+
+    def test_check_rate_limit_accepts_plan(self):
+        """check_rate_limit must accept a plan kwarg without error (no Redis needed)."""
+        from app.modules.ai_assistant.cache import check_rate_limit
+
+        # With no Redis configured the function returns True and ignores the limit
+        result = check_rate_limit("org-123", plan="pro")
+        assert isinstance(result, bool)
+
+    def test_unknown_plan_falls_back(self):
+        from app.modules.ai_assistant.cache import check_rate_limit, _RATE_LIMIT_DEFAULT
+
+        # Should not raise; uses the default limit
+        result = check_rate_limit("org-xyz", plan="nonexistent")
+        assert isinstance(result, bool)
+
+
+# ── T3.2: GitLab OAuth ────────────────────────────────────────────────────────
+
+
+class TestGitLabOAuth:
+    def test_generate_state_is_random(self):
+        from app.modules.integrations.gitlab_oauth import generate_state
+
+        s1 = generate_state()
+        s2 = generate_state()
+        assert len(s1) > 20
+        assert s1 != s2
+
+    def test_build_auth_url_raises_without_config(self):
+        import pytest
+        from app.modules.integrations.gitlab_oauth import build_auth_url
+
+        with pytest.raises(ValueError, match="GITLAB_OAUTH_CLIENT_ID"):
+            build_auth_url(state="abc123")
+
+    def test_build_auth_url_with_config(self, monkeypatch):
+        from app.modules.integrations import gitlab_oauth
+        from app.config import settings
+
+        monkeypatch.setattr(settings, "GITLAB_OAUTH_CLIENT_ID", "test-client-id")
+        url = gitlab_oauth.build_auth_url(
+            state="mystate",
+            redirect_uri="https://app.example.com/callback",
+        )
+        assert "oauth/authorize" in url
+        assert "test-client-id" in url
+        assert "mystate" in url
+
+
+# ── T3.10: Integration health endpoint ────────────────────────────────────────
+
+
+class TestIntegrationHealth:
+    def test_health_endpoint_exists(self):
+        """The health endpoint must be registered in the router."""
+        from app.main import app
+        from fastapi.testclient import TestClient
+
+        routes = [r.path for r in app.routes]
+        # Check that /organizations/{org_id}/integrations/{integration_id}/health exists
+        assert any("health" in r for r in routes)
+
+
+# ── T4.8: Alert config model ─────────────────────────────────────────────────
+
+
+class TestOrgAlertConfig:
+    def test_model_importable(self):
+        from app.models.policy import OrgAlertConfig
+
+        assert OrgAlertConfig.__tablename__ == "org_alert_configs"
+
+    def test_model_has_required_fields(self):
+        from app.models.policy import OrgAlertConfig
+
+        cols = {c.name for c in OrgAlertConfig.__table__.columns}
+        assert "email_enabled" in cols
+        assert "slack_enabled" in cols
+        assert "webhook_enabled" in cols
+        assert "min_severity" in cols
+        assert "email_recipients" in cols
+
+    def test_alert_config_endpoint_registered(self):
+        from app.main import app
+
+        routes = [r.path for r in app.routes]
+        assert any("alert-config" in r for r in routes)
+
+
+# ── T5.1: SAML 2.0 ───────────────────────────────────────────────────────────
+
+
+class TestSAML:
+    def test_saml_module_importable(self):
+        from app.modules.auth_billing import saml
+
+        assert hasattr(saml, "get_metadata_xml")
+        assert hasattr(saml, "build_authn_request")
+        assert hasattr(saml, "process_acs_response")
+
+    def test_saml_not_configured_raises(self):
+        import pytest
+        from app.modules.auth_billing.saml import get_metadata_xml
+
+        with pytest.raises((ValueError, NotImplementedError)):
+            get_metadata_xml()
+
+    def test_saml_endpoints_in_router(self):
+        from app.main import app
+
+        routes = [r.path for r in app.routes]
+        assert any("saml" in r for r in routes)
+
+    def test_saml_provider_in_list(self):
+        from app.main import app
+        from fastapi.testclient import TestClient
+
+        client = TestClient(app)
+        resp = client.get("/api/v1/sso/providers")
+        assert resp.status_code == 200
+        providers = [p["provider"] for p in resp.json()]
+        assert "saml" in providers
+
+
+# ── T6.3: NIST AI RMF crosswalk ──────────────────────────────────────────────
+
+
+class TestNISTCrosswalk:
+    def test_nist_crosswalk_not_empty(self):
+        from app.modules.annex_iv_core.nist_crosswalk import NIST_CROSSWALK
+
+        assert len(NIST_CROSSWALK) >= 10
+
+    def test_nist_crosswalk_structure(self):
+        from app.modules.annex_iv_core.nist_crosswalk import NIST_CROSSWALK
+
+        for entry in NIST_CROSSWALK:
+            assert "function" in entry
+            assert "category" in entry
+            assert "annex_iv_sections" in entry
+            assert "coverage" in entry
+            assert entry["coverage"] in ("full", "partial", "supplementary")
+
+    def test_colorado_crosswalk_not_empty(self):
+        from app.modules.annex_iv_core.nist_crosswalk import COLORADO_AIA_CROSSWALK
+
+        assert len(COLORADO_AIA_CROSSWALK) >= 5
+
+    def test_nist_filter_by_section(self):
+        from app.modules.annex_iv_core.nist_crosswalk import get_nist_crosswalk
+
+        filtered = get_nist_crosswalk(section_filter=[5])
+        assert all(5 in e["annex_iv_sections"] for e in filtered)
+        assert len(filtered) > 0
+
+    def test_colorado_filter_by_section(self):
+        from app.modules.annex_iv_core.nist_crosswalk import get_colorado_crosswalk
+
+        filtered = get_colorado_crosswalk(section_filter=[2])
+        assert all(2 in e["annex_iv_sections"] for e in filtered)
+
+    def test_nist_functions_cover_all_four(self):
+        from app.modules.annex_iv_core.nist_crosswalk import NIST_CROSSWALK
+
+        functions = {e["function"] for e in NIST_CROSSWALK}
+        assert {"GOVERN", "MAP", "MEASURE", "MANAGE"} == functions
+
+
+# ── T6.4: API Keys ────────────────────────────────────────────────────────────
+
+
+class TestApiKeys:
+    def test_model_importable(self):
+        from app.models.api_key import ApiKey
+
+        assert ApiKey.__tablename__ == "api_keys"
+
+    def test_model_has_hash_field(self):
+        from app.models.api_key import ApiKey
+
+        cols = {c.name for c in ApiKey.__table__.columns}
+        assert "key_hash" in cols
+        assert "key_prefix" in cols
+        assert "is_active" in cols
+
+    def test_key_generation(self):
+        from app.api.v1.endpoints.api_keys import _generate_key
+
+        full_key, prefix, key_hash = _generate_key()
+        assert full_key.startswith("caik_")
+        assert prefix.startswith("caik_")
+        assert len(key_hash) == 64  # SHA-256 hex
+
+    def test_key_hash_deterministic(self):
+        import hashlib
+        from app.api.v1.endpoints.api_keys import _hash_key
+
+        h1 = _hash_key("caik_test")
+        h2 = hashlib.sha256(b"caik_test").hexdigest()
+        assert h1 == h2
+
+    def test_key_hash_unique_per_key(self):
+        from app.api.v1.endpoints.api_keys import _generate_key
+
+        _, _, h1 = _generate_key()
+        _, _, h2 = _generate_key()
+        assert h1 != h2
+
+    def test_api_keys_endpoint_in_router(self):
+        from app.main import app
+
+        routes = [r.path for r in app.routes]
+        assert any("api-keys" in r for r in routes)

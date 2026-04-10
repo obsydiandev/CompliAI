@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     admin,
     ai_systems,
+    api_keys,
     assistant,
     auth,
     billing,
@@ -74,4 +75,9 @@ api_router.include_router(
     templates.system_router,
     prefix="/systems/{system_id}",
     tags=["templates"],
+)
+api_router.include_router(
+    api_keys.router,
+    prefix="/organizations/{org_id}/api-keys",
+    tags=["api-keys"],
 )

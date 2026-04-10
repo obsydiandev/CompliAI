@@ -384,4 +384,30 @@ export const ruleGeneratorApi = {
     ),
 }
 
+export const alertConfigApi = {
+  get: (orgId: string) =>
+    api.get<import('@/types').AlertConfig>(`/organizations/${orgId}/policies/alert-config`),
+  update: (orgId: string, data: import('@/types').AlertConfig) =>
+    api.put<import('@/types').AlertConfig>(
+      `/organizations/${orgId}/policies/alert-config`,
+      data,
+    ),
+}
+
+export const apiKeyApi = {
+  list: (orgId: string) =>
+    api.get<import('@/types').ApiKeyRead[]>(`/organizations/${orgId}/api-keys`),
+  create: (orgId: string, data: { name: string; expires_in_days?: number | null }) =>
+    api.post<import('@/types').ApiKeyCreated>(`/organizations/${orgId}/api-keys`, data),
+  revoke: (orgId: string, keyId: string) =>
+    api.delete(`/organizations/${orgId}/api-keys/${keyId}`),
+}
+
+export const integrationHealthApi = {
+  health: (orgId: string, integrationId: string) =>
+    api.get<import('@/types').IntegrationHealth>(
+      `/organizations/${orgId}/integrations/${integrationId}/health`,
+    ),
+}
+
 export default api

@@ -26,6 +26,10 @@ from app.modules.annex_iv_core.iso42001_crosswalk import (
     ISO_42001_CROSSWALK,
     build_evidence_package,
 )
+from app.modules.annex_iv_core.nist_crosswalk import (
+    get_colorado_crosswalk,
+    get_nist_crosswalk,
+)
 from app.modules.annex_iv_core.templates import (
     apply_template_to_content,
     get_template,
@@ -216,3 +220,38 @@ def generate_ai_ia(
         use_llm=payload.use_llm,
     )
     return AIIAResponse(report=report)
+
+
+# ── NIST AI RMF 1.0 crosswalk (T6.3) ─────────────────────────────────────────
+
+
+@system_router.get("/nist-ai-rmf")
+def get_nist_ai_rmf_crosswalk(
+    system_id: uuid.UUID,
+    section: list[int] | None = None,
+    _: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Return the Annex IV ↔ NIST AI RMF 1.0 crosswalk (T6.3).
+
+    Optionally filter by ``section`` query param (repeatable:
+    ``?section=1&section=5``) to return only entries that reference
+    those Annex IV sections.
+    """
+    _get_system_or_404(system_id, db)
+    return get_nist_crosswalk(section_filter=section or None)
+
+
+# ── Colorado AI Act (SB 24-205) crosswalk (T6.3) ──────────────────────────────
+
+
+@system_router.get("/colorado-ai-act")
+def get_colorado_ai_act_crosswalk(
+    system_id: uuid.UUID,
+    section: list[int] | None = None,
+    _: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Return the Annex IV ↔ Colorado AI Act (SB 24-205) crosswalk (T6.3)."""
+    _get_system_or_404(system_id, db)
+    return get_colorado_crosswalk(section_filter=section or None)

@@ -24,7 +24,7 @@ from app.api.v1.deps import get_current_active_user
 from app.config import settings
 from app.database import get_db
 from app.models.ai_system import AISystem
-from app.models.organization import OrganizationMembership
+from app.models.organization import Organization, OrganizationMembership
 from app.models.technical_file import Section, TechnicalFile
 from app.models.user import User
 from app.modules.ai_assistant import cache as _cache
@@ -59,6 +59,12 @@ def _check_ai_system(
     if not membership:
         raise HTTPException(status_code=403, detail="Access denied")
     return system, membership
+
+
+def _org_plan(system: AISystem, db: Session) -> str:
+    """Return the billing plan of the org owning *system* (default: 'starter')."""
+    org = db.query(Organization).filter(Organization.id == system.org_id).first()
+    return org.plan if org else "starter"
 
 
 def _check_openai() -> None:
@@ -109,8 +115,8 @@ def generate_draft(
 
     system, _ = _check_ai_system(system_id, current_user, db)
 
-    # Rate limit
-    if not _cache.check_rate_limit(str(system.org_id)):
+    # Rate limit — per billing plan
+    if not _cache.check_rate_limit(str(system.org_id), plan=_org_plan(system, db)):
         raise HTTPException(status_code=429, detail="Rate limit exceeded. Please wait a moment.")
 
     existing = _load_current_section(system, section_number, db)
@@ -158,6 +164,7 @@ def stream_draft(
         annex_iii=system.annex_iii_classification,
         existing_content=existing,
         org_id=str(system.org_id),
+        plan=_org_plan(system, db),
     )
     return StreamingResponse(generator, media_type="text/event-stream")
 

@@ -44,6 +44,23 @@ class Settings(BaseSettings):
     SSO_OIDC_CLIENT_SECRET: str = ""
     SSO_OIDC_DISCOVERY_URL: str = ""  # e.g. https://dev-xxx.okta.com/.well-known/openid-configuration
 
+    # ── GitLab OAuth 2.0 (T3.2) ──────────────────────────────────────────────
+    GITLAB_OAUTH_CLIENT_ID: str = ""
+    GITLAB_OAUTH_CLIENT_SECRET: str = ""
+    GITLAB_OAUTH_BASE_URL: str = "https://gitlab.com"
+    GITLAB_OAUTH_REDIRECT_URI: str = "http://localhost:3000/auth/gitlab/callback"
+
+    # ── SAML 2.0 SP settings (T5.1) ──────────────────────────────────────────
+    SAML_SP_ENTITY_ID: str = ""
+    SAML_SP_ACS_URL: str = ""           # e.g. https://app.compliai.io/api/v1/sso/saml/acs
+    SAML_SP_SLO_URL: str = ""
+    SAML_SP_PRIVATE_KEY: str = ""       # PEM private key, no headers
+    SAML_SP_CERTIFICATE: str = ""       # PEM certificate, no headers
+    SAML_IDP_ENTITY_ID: str = ""
+    SAML_IDP_SSO_URL: str = ""
+    SAML_IDP_SLO_URL: str = ""
+    SAML_IDP_CERTIFICATE: str = ""      # IdP X.509 cert, no headers
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
