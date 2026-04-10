@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Cpu, Settings, ShieldCheck, LogOut, ChevronDown, BarChart3 } from 'lucide-react'
+import { LayoutDashboard, Cpu, Settings, ShieldCheck, LogOut, ChevronDown, BarChart3, Zap } from 'lucide-react'
 import { useAuthStore } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'AI Systems', href: '/systems', icon: Cpu },
   { label: 'Portfolio', href: '/dashboard/portfolio', icon: BarChart3 },
+  { label: 'AI Usage', href: '/dashboard/llm-usage', icon: Zap },
   { label: 'Billing', href: '/dashboard/billing', icon: ShieldCheck },
   { label: 'Settings', href: '/settings', icon: Settings },
 ]

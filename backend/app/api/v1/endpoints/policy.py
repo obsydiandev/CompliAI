@@ -15,6 +15,7 @@ Org-scoped (mounted under /organizations/{org_id}/policies):
   PUT    /{rule_id}                    — Update rule
   DELETE /{rule_id}                   — Delete rule
   POST   /seed-builtin                 — Install default built-in rules
+  POST   /generate-rule                — LLM: natural language → condition (T4.4)
 """
 
 from __future__ import annotations
@@ -42,11 +43,14 @@ from app.modules.annex_iv_core.schemas import SECTION_NAMES
 from app.modules.policy_engine import alert_dispatcher, bias_audit, shadow_validator
 from app.modules.policy_engine.builtin_rules import seed_builtin_rules
 from app.modules.policy_engine.rule_evaluator import build_system_snapshot, evaluate_rule
+from app.modules.policy_engine.rule_generator import generate_rule_from_text, suggest_rule_name
 from app.schemas.policy import (
     BiasAuditRequest,
     BiasAuditResponse,
     ComplianceEventRead,
     ComplianceHealthReport,
+    GenerateRuleRequest,
+    GenerateRuleResponse,
     PolicyRuleCreate,
     PolicyRuleRead,
     PolicyRuleUpdate,
@@ -193,6 +197,45 @@ def seed_builtin(
     created = seed_builtin_rules(ctx.current_org.id, db)
     db.commit()
     return created
+
+
+@org_router.post("/generate-rule", response_model=GenerateRuleResponse)
+def generate_rule(
+    payload: GenerateRuleRequest,
+    ctx: OrgContext = Depends(require_role("admin", "ml_owner")),
+    db: Session = Depends(get_db),
+):
+    """Convert natural-language policy text to a structured rule condition (T4.4).
+
+    Uses OpenAI to parse the description and returns a condition dict plus a
+    suggested rule name, which the caller can then POST to ``/policies`` to
+    persist as a custom rule.
+    """
+    from app.config import settings
+
+    if not settings.OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="AI rule generation requires OPENAI_API_KEY to be configured.",
+        )
+
+    try:
+        condition = generate_rule_from_text(
+            payload.description,
+            model=settings.OPENAI_MODEL,
+            api_key=settings.OPENAI_API_KEY,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    suggested_name = suggest_rule_name(payload.description, condition)
+    return GenerateRuleResponse(
+        suggested_name=suggested_name,
+        condition=condition,
+        description=payload.description,
+    )
 
 
 # ── System-scoped compliance endpoints ───────────────────────────────────────

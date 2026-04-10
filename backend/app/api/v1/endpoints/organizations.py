@@ -1,11 +1,15 @@
 import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from slugify import slugify
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.v1.deps import OrgContext, get_current_active_user, get_org_context
+from app.api.v1.deps import OrgContext, get_current_active_user, get_org_context, require_role
 from app.database import get_db
+from app.models.llm_usage import LLMUsageLog
 from app.models.organization import Organization, OrganizationMembership
 from app.models.user import User
 from app.schemas.common import MessageResponse
@@ -189,3 +193,84 @@ def remove_member(
     db.delete(membership)
     db.commit()
     return MessageResponse(message="Member removed successfully")
+
+
+# ── LLM Usage (T2.8) ──────────────────────────────────────────────────────────
+
+
+@router.get("/{org_id}/llm-usage")
+def get_llm_usage(
+    days: int = Query(default=30, ge=1, le=365, description="Lookback window in days"),
+    ctx: OrgContext = Depends(require_role("admin", "ml_owner")),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Return LLM usage statistics for the organisation (T2.8).
+
+    Returns aggregated token counts, estimated costs, and per-feature breakdowns
+    for the specified lookback window.
+    """
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+
+    logs = (
+        db.query(LLMUsageLog)
+        .filter(
+            LLMUsageLog.org_id == ctx.current_org.id,
+            LLMUsageLog.created_at >= cutoff,
+        )
+        .order_by(LLMUsageLog.created_at.desc())
+        .all()
+    )
+
+    total_prompt_tokens = sum(log.prompt_tokens for log in logs)
+    total_completion_tokens = sum(log.completion_tokens for log in logs)
+    total_tokens = sum(log.total_tokens for log in logs)
+    total_cost_usd = sum(log.cost_usd or 0.0 for log in logs)
+    total_calls = len(logs)
+    successful_calls = sum(1 for log in logs if log.success)
+    failed_calls = total_calls - successful_calls
+
+    # Per-feature breakdown
+    feature_stats: dict[str, dict[str, Any]] = {}
+    for log in logs:
+        feat = log.feature or "unknown"
+        if feat not in feature_stats:
+            feature_stats[feat] = {
+                "calls": 0,
+                "tokens": 0,
+                "cost_usd": 0.0,
+            }
+        feature_stats[feat]["calls"] += 1
+        feature_stats[feat]["tokens"] += log.total_tokens
+        feature_stats[feat]["cost_usd"] += log.cost_usd or 0.0
+
+    # Per-model breakdown
+    model_stats: dict[str, dict[str, Any]] = {}
+    for log in logs:
+        mdl = log.model or "unknown"
+        if mdl not in model_stats:
+            model_stats[mdl] = {"calls": 0, "tokens": 0, "cost_usd": 0.0}
+        model_stats[mdl]["calls"] += 1
+        model_stats[mdl]["tokens"] += log.total_tokens
+        model_stats[mdl]["cost_usd"] += log.cost_usd or 0.0
+
+    # Round costs
+    for stats in list(feature_stats.values()) + list(model_stats.values()):
+        stats["cost_usd"] = round(stats["cost_usd"], 6)
+
+    return {
+        "org_id": str(ctx.current_org.id),
+        "period_days": days,
+        "period_start": cutoff.isoformat(),
+        "period_end": datetime.now(UTC).isoformat(),
+        "summary": {
+            "total_calls": total_calls,
+            "successful_calls": successful_calls,
+            "failed_calls": failed_calls,
+            "total_prompt_tokens": total_prompt_tokens,
+            "total_completion_tokens": total_completion_tokens,
+            "total_tokens": total_tokens,
+            "total_cost_usd": round(total_cost_usd, 6),
+        },
+        "by_feature": feature_stats,
+        "by_model": model_stats,
+    }

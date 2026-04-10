@@ -129,8 +129,8 @@ export default function SystemDetailPage() {
       </div>
 
       {/* Nav tabs */}
-      <div className="flex gap-1 border-b">
-        {['Annex IV', 'Evidence', 'Copilot', 'Integrations', 'Compliance', 'ISO 42001', 'Settings'].map((tab) => {
+      <div className="flex gap-1 border-b overflow-x-auto">
+        {['Annex IV', 'Evidence', 'Copilot', 'Integrations', 'Compliance', 'PMM', 'Revisions', 'ISO 42001', 'Settings'].map((tab) => {
           const href =
             tab === 'Annex IV'
               ? `/systems/${id}/annex-iv`
@@ -142,6 +142,10 @@ export default function SystemDetailPage() {
               ? `/systems/${id}/integrations`
               : tab === 'Compliance'
               ? `/systems/${id}/compliance`
+              : tab === 'PMM'
+              ? `/systems/${id}/pmm`
+              : tab === 'Revisions'
+              ? `/systems/${id}/revisions`
               : tab === 'ISO 42001'
               ? `/systems/${id}/iso42001`
               : `/systems/${id}/settings`
@@ -149,7 +153,7 @@ export default function SystemDetailPage() {
             <Link
               key={tab}
               href={href}
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-primary transition-colors"
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-primary transition-colors whitespace-nowrap"
             >
               {tab}
             </Link>

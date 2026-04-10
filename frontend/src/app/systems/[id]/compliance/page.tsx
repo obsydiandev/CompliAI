@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -13,15 +14,19 @@ import {
   Play,
   BarChart3,
   FileSearch,
+  Wand2,
+  Loader2,
 } from 'lucide-react'
-import { policyApi } from '@/lib/api'
+import { policyApi, ruleGeneratorApi } from '@/lib/api'
+import { useAuthStore } from '@/lib/auth'
 import { formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/use-toast'
-import type { ComplianceHealthReport, ComplianceEvent, SectionDebt } from '@/types'
+import type { ComplianceHealthReport, ComplianceEvent, SectionDebt, GeneratedRule } from '@/types'
 
 function SeverityBadge({ severity }: { severity: string }) {
   if (severity === 'blocking')
@@ -105,7 +110,11 @@ function EventRow({
 
 export default function CompliancePage() {
   const { id: systemId } = useParams<{ id: string }>()
+  const { currentOrg } = useAuthStore()
   const qc = useQueryClient()
+  const [ruleText, setRuleText] = useState('')
+  const [generatedRule, setGeneratedRule] = useState<GeneratedRule | null>(null)
+  const [showRuleGenerator, setShowRuleGenerator] = useState(false)
 
   const { data: health, isLoading } = useQuery({
     queryKey: ['compliance-health', systemId],
@@ -132,6 +141,35 @@ export default function CompliancePage() {
       toast({ title: 'Event resolved' })
     },
     onError: () => toast({ variant: 'destructive', title: 'Failed to resolve event' }),
+  })
+
+  const generateRuleMutation = useMutation({
+    mutationFn: (description: string) =>
+      ruleGeneratorApi.generateRule(currentOrg!.id, description).then((r) => r.data),
+    onSuccess: (data) => {
+      setGeneratedRule(data)
+      toast({ title: 'Rule generated', description: data.suggested_name })
+    },
+    onError: () =>
+      toast({ variant: 'destructive', title: 'Rule generation failed. Check OPENAI_API_KEY.' }),
+  })
+
+  const saveRuleMutation = useMutation({
+    mutationFn: (rule: GeneratedRule) =>
+      policyApi.createRule(currentOrg!.id, {
+        name: rule.suggested_name,
+        description: rule.description,
+        condition: rule.condition,
+        severity: 'warning',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['compliance-health', systemId] })
+      setGeneratedRule(null)
+      setRuleText('')
+      setShowRuleGenerator(false)
+      toast({ title: 'Policy rule saved' })
+    },
+    onError: () => toast({ variant: 'destructive', title: 'Failed to save rule' }),
   })
 
   if (isLoading) {
@@ -266,6 +304,95 @@ export default function CompliancePage() {
             ))
           )}
         </CardContent>
+      </Card>
+
+      {/* LLM Rule Generator (T4.4) */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wand2 className="h-4 w-4" />
+                Generate Policy Rule from Text
+              </CardTitle>
+              <CardDescription>
+                Describe a compliance rule in natural language — AI will create it for you.
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowRuleGenerator(!showRuleGenerator)
+                setGeneratedRule(null)
+              }}
+            >
+              {showRuleGenerator ? 'Hide' : 'Use AI Generator'}
+            </Button>
+          </div>
+        </CardHeader>
+        {showRuleGenerator && (
+          <CardContent className="space-y-4">
+            <Textarea
+              rows={3}
+              placeholder="e.g. The Technical File must be updated every 14 days."
+              value={ruleText}
+              onChange={(e) => setRuleText(e.target.value)}
+            />
+            <Button
+              size="sm"
+              onClick={() => generateRuleMutation.mutate(ruleText)}
+              disabled={!ruleText.trim() || generateRuleMutation.isPending || !currentOrg}
+            >
+              {generateRuleMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Generate rule
+                </>
+              )}
+            </Button>
+
+            {generatedRule && (
+              <div className="border rounded-md p-4 space-y-3 bg-muted/30">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Suggested name
+                  </p>
+                  <p className="text-sm font-medium">{generatedRule.suggested_name}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Condition
+                  </p>
+                  <pre className="text-xs bg-background rounded border p-2 overflow-auto">
+                    {JSON.stringify(generatedRule.condition, null, 2)}
+                  </pre>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => saveRuleMutation.mutate(generatedRule)}
+                    disabled={saveRuleMutation.isPending}
+                  >
+                    {saveRuleMutation.isPending ? 'Saving…' : 'Save rule'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setGeneratedRule(null)}
+                  >
+                    Discard
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
 
       {/* Links to sub-features */}

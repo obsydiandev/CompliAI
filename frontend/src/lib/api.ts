@@ -130,6 +130,11 @@ export const tfApi = {
       `/systems/${systemId}/technical-file/revisions/${revisionId}`,
       data
     ),
+  diffRevisions: (systemId: string, revisionId: string, otherRevisionId: string) =>
+    api.get<import('@/types').RevisionDiff[]>(
+      `/systems/${systemId}/technical-file/revisions/${revisionId}/diff`,
+      { params: { other_revision_id: otherRevisionId } }
+    ),
 }
 
 export const sectionApi = {
@@ -346,6 +351,37 @@ export const portfolioApi = {
 
 export const adminApi = {
   metrics: () => api.get<import('@/types').FounderMetrics>('/admin/metrics'),
+}
+
+export const pmmApi = {
+  get: (systemId: string) =>
+    api.get<import('@/types').PMMPlan>(`/systems/${systemId}/pmm/`),
+  update: (systemId: string, data: import('@/types').PMMPlanUpdate) =>
+    api.put<import('@/types').PMMPlan>(`/systems/${systemId}/pmm/`, data),
+  submitMetrics: (systemId: string, metrics: import('@/types').MetricEntry[]) =>
+    api.post<{ recorded_entries: number; total_log_entries: number; recorded_at: string }>(
+      `/systems/${systemId}/pmm/metrics`,
+      { metrics },
+    ),
+  listMetrics: (systemId: string) =>
+    api.get<import('@/types').MetricsLog>(`/systems/${systemId}/pmm/metrics`),
+  summary: (systemId: string) =>
+    api.get<import('@/types').PMMSummary>(`/systems/${systemId}/pmm/summary`),
+}
+
+export const llmUsageApi = {
+  getOrgUsage: (orgId: string, days = 30) =>
+    api.get<import('@/types').LLMUsageStats>(`/organizations/${orgId}/llm-usage`, {
+      params: { days },
+    }),
+}
+
+export const ruleGeneratorApi = {
+  generateRule: (orgId: string, description: string, severity = 'warning') =>
+    api.post<import('@/types').GeneratedRule>(
+      `/organizations/${orgId}/policies/generate-rule`,
+      { description, severity },
+    ),
 }
 
 export default api

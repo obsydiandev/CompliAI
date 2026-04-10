@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     exports,
     integrations,
     organizations,
+    pmm,
     policy,
     portfolio,
     sections,
@@ -62,6 +63,11 @@ api_router.include_router(
     policy.system_router,
     prefix="/systems/{system_id}/compliance",
     tags=["policy"],
+)
+api_router.include_router(
+    pmm.router,
+    prefix="/systems/{system_id}/pmm",
+    tags=["pmm"],
 )
 api_router.include_router(templates.templates_router, prefix="/templates", tags=["templates"])
 api_router.include_router(

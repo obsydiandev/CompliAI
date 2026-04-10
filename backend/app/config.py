@@ -18,6 +18,19 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     ENVIRONMENT: str = "development"
 
+    # ── Email / SMTP ──────────────────────────────────────────────────────────
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASS: str = ""
+    EMAIL_FROM: str = "noreply@compliai.io"
+
+    # ── Celery / Task Queue ───────────────────────────────────────────────────
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/1"
+    # How often (in seconds) the periodic compliance check runs (default: 1 hour)
+    COMPLIANCE_CHECK_INTERVAL_SECONDS: int = 3600
+
     # ── SSO / OIDC ────────────────────────────────────────────────────────────
     # Google OIDC
     SSO_GOOGLE_CLIENT_ID: str = ""

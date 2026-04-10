@@ -382,3 +382,100 @@ export interface FounderMetrics {
   compliance: ComplianceMetricsAdmin
   growth: GrowthMetrics
 }
+
+// ── Revision Diff (T1.11) ─────────────────────────────────────────────────
+
+export interface RevisionDiff {
+  section_number: number
+  changed_fields: string[]
+  old_values: Record<string, unknown>
+  new_values: Record<string, unknown>
+}
+
+// ── PMM Module (T4.9) ─────────────────────────────────────────────────────
+
+export interface PMMPlan {
+  system_id: string
+  system_name: string
+  content: Record<string, unknown>
+  completeness: number
+  missing_required_fields: string[]
+  last_updated_at: string | null
+  all_fields: string[]
+}
+
+export interface PMMPlanUpdate {
+  pmm_plan?: string
+  monitoring_metrics?: string[]
+  data_collection_methods?: string
+  reporting_frequency?: string
+  incident_reporting_procedure?: string
+  feedback_mechanisms?: string
+  monitoring_sources?: string[]
+  review_schedule?: string
+}
+
+export interface MetricEntry {
+  metric_name: string
+  value: number
+  unit?: string
+  notes?: string
+  recorded_at?: string
+}
+
+export interface MetricLogEntry {
+  recorded_at: string
+  submitted_by: string
+  metrics: Array<{ metric_name: string; value: number; unit?: string; notes?: string }>
+}
+
+export interface MetricsLog {
+  system_id: string
+  total_entries: number
+  entries: MetricLogEntry[]
+}
+
+export interface PMMSummary {
+  completeness: number
+  missing_fields: string[]
+  has_plan: boolean
+  has_metrics: boolean
+  has_incident_procedure: boolean
+  last_section_updated_at: string | null
+}
+
+// ── LLM Usage (T2.8) ─────────────────────────────────────────────────────
+
+export interface LLMUsageSummary {
+  total_calls: number
+  successful_calls: number
+  failed_calls: number
+  total_prompt_tokens: number
+  total_completion_tokens: number
+  total_tokens: number
+  total_cost_usd: number
+}
+
+export interface LLMFeatureStat {
+  calls: number
+  tokens: number
+  cost_usd: number
+}
+
+export interface LLMUsageStats {
+  org_id: string
+  period_days: number
+  period_start: string
+  period_end: string
+  summary: LLMUsageSummary
+  by_feature: Record<string, LLMFeatureStat>
+  by_model: Record<string, LLMFeatureStat>
+}
+
+// ── Rule Generator (T4.4) ─────────────────────────────────────────────────
+
+export interface GeneratedRule {
+  suggested_name: string
+  condition: Record<string, unknown>
+  description: string
+}
