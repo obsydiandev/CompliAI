@@ -20,6 +20,9 @@ class Organization(Base):
         nullable=False,
     )
     trial_ends_at = Column(DateTime, nullable=True)
+    stripe_customer_id = Column(String(100), nullable=True, unique=True)
+    stripe_subscription_id = Column(String(100), nullable=True)
+    stripe_subscription_status = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

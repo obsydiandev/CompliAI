@@ -130,12 +130,14 @@ export default function SystemDetailPage() {
 
       {/* Nav tabs */}
       <div className="flex gap-1 border-b">
-        {['Annex IV', 'Evidence', 'Settings'].map((tab) => {
+        {['Annex IV', 'Evidence', 'Copilot', 'Settings'].map((tab) => {
           const href =
             tab === 'Annex IV'
               ? `/systems/${id}/annex-iv`
               : tab === 'Evidence'
               ? `/systems/${id}/evidence`
+              : tab === 'Copilot'
+              ? `/systems/${id}/copilot`
               : `/systems/${id}/settings`
           return (
             <Link

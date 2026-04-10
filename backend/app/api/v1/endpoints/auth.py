@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -48,6 +49,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         name=f"{user_in.full_name or user_in.email.split('@')[0]}'s Workspace",
         slug=slug,
         plan="starter",
+        trial_ends_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=14),
     )
     db.add(org)
     db.flush()

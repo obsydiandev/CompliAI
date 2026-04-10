@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/use-toast'
 import { EvidenceList } from '@/components/evidence/evidence-list'
 import { EvidenceUpload } from '@/components/evidence/evidence-upload'
+import { DraftButton } from '@/components/assistant/draft-button'
+import { SuggestionsPanel } from '@/components/assistant/suggestions-panel'
 
 export default function SectionEditorPage() {
   const { id, sectionNumber } = useParams<{ id: string; sectionNumber: string }>()
@@ -43,7 +45,7 @@ export default function SectionEditorPage() {
     enabled: !!currentRevision,
   })
 
-  const { register, handleSubmit } = useForm<Record<string, string>>({
+  const { register, handleSubmit, reset, getValues } = useForm<Record<string, string>>({
     values: section
       ? Object.fromEntries(
           Object.entries(section.content).map(([k, v]) => [
@@ -88,12 +90,39 @@ export default function SectionEditorPage() {
     },
   })
 
+  function handleApplyDraft(draft: Record<string, unknown>) {
+    const formValues: Record<string, string> = {}
+    sectionMeta?.fields.forEach((field) => {
+      const value = draft[field.key]
+      if (value !== undefined) {
+        if (Array.isArray(value)) {
+          formValues[field.key] = JSON.stringify(value, null, 2)
+        } else {
+          formValues[field.key] = String(value)
+        }
+      }
+    })
+    reset({ ...getValues(), ...formValues })
+  }
+
   if (!sectionMeta) return <p>Section not found.</p>
 
   const score = section?.completeness_score ?? 0
   const sectionEvidence = (evidence ?? []).filter(
     (e) => e.section_id === section?.id || e.field_key?.startsWith(`${sectionNum}_`)
   )
+
+  // Compute missing fields from current content
+  const currentContent = section?.content ?? {}
+  const missingFields = sectionMeta.fields
+    .filter((f) => {
+      if (!f.required) return false
+      const val = currentContent[f.key]
+      if (val === undefined || val === null || val === '') return true
+      if (Array.isArray(val) && val.length === 0) return true
+      return false
+    })
+    .map((f) => f.key)
 
   return (
     <div className="space-y-6">
@@ -112,14 +141,19 @@ export default function SectionEditorPage() {
         <span className="text-sm font-medium w-12 text-right">{formatPercent(score)}</span>
       </div>
 
-      {/* AI hint banner */}
-      <div className="flex items-center gap-3 p-3 rounded-md border border-primary/30 bg-primary/5 text-sm text-primary">
-        <Sparkles className="h-4 w-4 shrink-0" />
-        <span>
-          <strong>AI Copilot available</strong> — Generate a draft for this section using your
-          system metadata. (Coming soon)
-        </span>
-      </div>
+      {/* AI draft button */}
+      <DraftButton
+        systemId={id}
+        sectionNumber={sectionNum}
+        onApplyDraft={handleApplyDraft}
+      />
+
+      {/* Missing field suggestions */}
+      <SuggestionsPanel
+        systemId={id}
+        sectionNumber={sectionNum}
+        missingFields={missingFields}
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Form */}

@@ -2,7 +2,9 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     ai_systems,
+    assistant,
     auth,
+    billing,
     evidence,
     exports,
     organizations,
@@ -30,3 +32,9 @@ api_router.include_router(
     prefix="/systems/{system_id}/technical-file/revisions/{revision_id}/export",
     tags=["exports"],
 )
+api_router.include_router(
+    assistant.router,
+    prefix="/systems/{system_id}/assistant",
+    tags=["assistant"],
+)
+api_router.include_router(billing.router, prefix="/billing", tags=["billing"])

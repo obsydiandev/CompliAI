@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth'
 import { authApi, orgApi } from '@/lib/api'
 import { Sidebar } from '@/components/layout/sidebar'
+import { TrialBanner } from '@/components/billing/trial-banner'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -39,9 +40,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-6">{children}</div>
-      </main>
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <TrialBanner />
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-6">{children}</div>
+        </main>
+      </div>
     </div>
   )
 }

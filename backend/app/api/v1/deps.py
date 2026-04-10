@@ -76,3 +76,30 @@ def require_role(*roles: str):
         return ctx
 
     return role_checker
+
+
+def check_billing_access(org) -> None:
+    """Raise 402 if the organisation's trial has expired and has no active subscription.
+
+    Call this at the start of mutation endpoints that should be gated behind billing.
+    """
+    from datetime import UTC, datetime
+
+    has_active_subscription = getattr(org, "stripe_subscription_status", None) in (
+        "active",
+        "trialing",
+    )
+    if has_active_subscription:
+        return
+
+    trial_ends_at = getattr(org, "trial_ends_at", None)
+    if trial_ends_at and trial_ends_at > datetime.now(UTC).replace(tzinfo=None):
+        return  # Still in trial
+
+    raise HTTPException(
+        status_code=402,
+        detail=(
+            "Your free trial has expired. Please upgrade your plan to continue "
+            "editing your Technical File."
+        ),
+    )

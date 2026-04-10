@@ -186,4 +186,46 @@ export const exportApi = {
     ),
 }
 
+export const billingApi = {
+  status: (orgId: string) =>
+    api.get<import('@/types').BillingStatus>(`/billing/status/${orgId}`),
+  createCheckout: (orgId: string, plan: string) =>
+    api.post<{ url: string }>('/billing/checkout', { org_id: orgId, plan }),
+  createPortal: (orgId: string) =>
+    api.post<{ url: string }>('/billing/portal', { org_id: orgId }),
+}
+
+export const assistantApi = {
+  generateDraft: (systemId: string, sectionNumber: number) =>
+    api.post<import('@/types').DraftResult>(
+      `/systems/${systemId}/assistant/draft/${sectionNumber}`
+    ),
+  streamDraftUrl: (systemId: string, sectionNumber: number) =>
+    `${BASE_URL}/systems/${systemId}/assistant/stream/${sectionNumber}`,
+  getSuggestions: (systemId: string, sectionNumber: number) =>
+    api.post<import('@/types').SuggestionsResult>(
+      `/systems/${systemId}/assistant/suggestions/${sectionNumber}`
+    ),
+  docDiff: (
+    systemId: string,
+    previousMetadata: Record<string, unknown>,
+    newMetadata: Record<string, unknown>
+  ) =>
+    api.post<{ affected_sections: import('@/types').DocDiffItem[] }>(
+      `/systems/${systemId}/assistant/doc-diff`,
+      { previous_metadata: previousMetadata, new_metadata: newMetadata }
+    ),
+  userInstructions: (systemId: string) =>
+    api.post<{ markdown: string }>(`/systems/${systemId}/assistant/user-instructions`),
+  qa: (systemId: string, question: string, revisionId?: string) =>
+    api.post<import('@/types').QAResult>(`/systems/${systemId}/assistant/qa`, {
+      question,
+      revision_id: revisionId,
+    }),
+  indexRevision: (systemId: string, revisionId?: string) =>
+    api.post<import('@/types').IndexResult>(`/systems/${systemId}/assistant/index`, {
+      revision_id: revisionId,
+    }),
+}
+
 export default api

@@ -46,7 +46,7 @@ export default function RegisterPage() {
       const userRes = await authApi.me()
       setUser(userRes.data)
 
-      router.push('/dashboard')
+      router.push('/onboarding')
     } catch {
       toast({
         variant: 'destructive',

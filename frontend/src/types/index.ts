@@ -109,3 +109,50 @@ export interface IntendedPurposeResult {
   triggers: string[]
   warnings: string[]
 }
+
+// ── Billing ───────────────────────────────────────────────────────────────────
+
+export interface BillingStatus {
+  org_id: string
+  plan: OrgPlan
+  stripe_subscription_status: string | null
+  has_active_subscription: boolean
+  trial_active: boolean
+  trial_ends_at: string | null
+  trial_days_remaining: number | null
+  has_billing_access: boolean
+}
+
+// ── AI Assistant ──────────────────────────────────────────────────────────────
+
+export interface DraftResult {
+  section_number: number
+  draft: Record<string, unknown>
+}
+
+export interface SuggestionsResult {
+  section_number: number
+  missing_fields: string[]
+  suggestions: Record<string, string>
+}
+
+export interface DocDiffItem {
+  section_number: number
+  section_name: string
+  reason: string
+  draft_changes: string
+}
+
+export interface QAResult {
+  answer: string
+  citations: Array<{
+    section_number: number
+    section_name: string
+    excerpt: string
+  }>
+}
+
+export interface IndexResult {
+  indexed_sections: number
+  revision_id: string
+}
