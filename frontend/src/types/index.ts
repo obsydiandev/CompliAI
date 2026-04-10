@@ -211,3 +211,125 @@ export interface TestReportResult {
   }
   annex_iv_section4_suggestion: Record<string, string>
 }
+
+// ── Policy Engine (Epic 5) ────────────────────────────────────────────────────
+
+export type PolicySeverity2 = 'info' | 'warning' | 'blocking'
+export type PolicyRuleType = 'builtin' | 'custom'
+export type ComplianceEventStatus = 'open' | 'resolved' | 'snoozed'
+
+export interface PolicyRule {
+  id: string
+  org_id: string
+  ai_system_id: string | null
+  name: string
+  description: string | null
+  rule_type: PolicyRuleType
+  condition: Record<string, unknown>
+  severity: PolicySeverity2
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ComplianceEvent {
+  id: string
+  rule_id: string
+  ai_system_id: string
+  status: ComplianceEventStatus
+  details: Record<string, unknown> | null
+  triggered_at: string
+  resolved_at: string | null
+}
+
+export interface SectionDebt {
+  section_number: number
+  section_name: string
+  completeness: number
+  missing_fields: string[]
+  days_since_update: number | null
+}
+
+export interface ComplianceHealthReport {
+  ai_system_id: string
+  system_name: string
+  days_since_last_revision: number | null
+  overall_completeness: number
+  open_violations: number
+  unlinked_deployments: number
+  missing_evidence_count: number
+  section_debt: SectionDebt[]
+  open_events: ComplianceEvent[]
+}
+
+export interface RunChecksResponse {
+  evaluated: number
+  violations: number
+  events_created: number
+  results: Array<{
+    rule_id: string
+    rule_name: string
+    violated: boolean
+    detail: string
+    event_id?: string
+  }>
+}
+
+export interface ShadowValidationResponse {
+  ok: boolean
+  summary: string
+  sections_requiring_update: number[]
+  details: Array<Record<string, unknown>>
+}
+
+export interface BiasAuditResponse {
+  ok: boolean
+  summary: string
+  metrics: Array<{
+    metric: string
+    previous: number | null
+    current: number
+    delta: number | null
+    status: string
+    message: string
+  }>
+  section5_evidence: Record<string, unknown>
+}
+
+// ── Templates & ISO 42001 (Epic 6) ───────────────────────────────────────────
+
+export interface TemplateSummary {
+  id: string
+  name: string
+  description: string
+  system_type: string
+  tags: string[]
+  sections_count: number
+}
+
+export interface CrosswalkEntry {
+  iso_clause: string
+  iso_title: string
+  annex_iv_sections: number[]
+  coverage: 'full' | 'partial' | 'supplementary'
+  notes: string
+}
+
+export interface EvidencePackage {
+  total_controls: number
+  fully_covered: number
+  partially_covered: number
+  not_covered: number
+  covered_clauses: string[]
+  partial_clauses: string[]
+  not_covered_clauses: string[]
+  coverage_pct: number
+}
+
+export interface AIIAReport {
+  title: string
+  system_name: string
+  risk_category: string
+  annex_iii_applicable: boolean
+  sections: Record<string, Record<string, unknown>>
+}

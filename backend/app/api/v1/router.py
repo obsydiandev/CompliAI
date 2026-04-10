@@ -9,14 +9,21 @@ from app.api.v1.endpoints import (
     exports,
     integrations,
     organizations,
+    policy,
     sections,
     technical_files,
+    templates,
 )
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
 api_router.include_router(integrations.org_router, prefix="/organizations", tags=["integrations"])
+api_router.include_router(
+    policy.org_router,
+    prefix="/organizations/{org_id}/policies",
+    tags=["policy"],
+)
 api_router.include_router(ai_systems.router, prefix="/systems", tags=["ai-systems"])
 api_router.include_router(
     technical_files.router,
@@ -41,3 +48,14 @@ api_router.include_router(
 )
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
 api_router.include_router(integrations.system_router, prefix="/systems", tags=["integrations"])
+api_router.include_router(
+    policy.system_router,
+    prefix="/systems/{system_id}/compliance",
+    tags=["policy"],
+)
+api_router.include_router(templates.templates_router, prefix="/templates", tags=["templates"])
+api_router.include_router(
+    templates.system_router,
+    prefix="/systems/{system_id}",
+    tags=["templates"],
+)

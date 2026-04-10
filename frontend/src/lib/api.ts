@@ -261,4 +261,64 @@ export const integrationApi = {
   },
 }
 
+export const policyApi = {
+  listRules: (orgId: string) =>
+    api.get<import('@/types').PolicyRule[]>(`/organizations/${orgId}/policies`),
+  createRule: (orgId: string, data: Record<string, unknown>) =>
+    api.post<import('@/types').PolicyRule>(`/organizations/${orgId}/policies`, data),
+  updateRule: (orgId: string, ruleId: string, data: Record<string, unknown>) =>
+    api.put<import('@/types').PolicyRule>(`/organizations/${orgId}/policies/${ruleId}`, data),
+  deleteRule: (orgId: string, ruleId: string) =>
+    api.delete(`/organizations/${orgId}/policies/${ruleId}`),
+  seedBuiltin: (orgId: string) =>
+    api.post<import('@/types').PolicyRule[]>(`/organizations/${orgId}/policies/seed-builtin`),
+  health: (systemId: string) =>
+    api.get<import('@/types').ComplianceHealthReport>(`/systems/${systemId}/compliance/health`),
+  runChecks: (systemId: string) =>
+    api.post<import('@/types').RunChecksResponse>(`/systems/${systemId}/compliance/run-checks`),
+  shadowValidate: (systemId: string, newMetrics: Record<string, number>, thresholdPct = 5) =>
+    api.post<import('@/types').ShadowValidationResponse>(
+      `/systems/${systemId}/compliance/shadow-validate`,
+      { new_metrics: newMetrics, threshold_pct: thresholdPct },
+    ),
+  biasAudit: (
+    systemId: string,
+    currentMetrics: Record<string, number>,
+    previousMetrics?: Record<string, number>,
+  ) =>
+    api.post<import('@/types').BiasAuditResponse>(
+      `/systems/${systemId}/compliance/bias-audit`,
+      { current_metrics: currentMetrics, previous_metrics: previousMetrics },
+    ),
+  listEvents: (systemId: string, status?: string) =>
+    api.get<import('@/types').ComplianceEvent[]>(
+      `/systems/${systemId}/compliance/events`,
+      { params: status ? { status_filter: status } : {} },
+    ),
+  resolveEvent: (systemId: string, eventId: string) =>
+    api.put<import('@/types').ComplianceEvent>(
+      `/systems/${systemId}/compliance/events/${eventId}/resolve`,
+    ),
+}
+
+export const templateApi = {
+  list: () => api.get<import('@/types').TemplateSummary[]>('/templates'),
+  get: (templateId: string) => api.get(`/templates/${templateId}`),
+  apply: (systemId: string, templateId: string, revisionId: string, overwrite = false) =>
+    api.post(`/systems/${systemId}/templates/apply`, {
+      template_id: templateId,
+      revision_id: revisionId,
+      overwrite,
+    }),
+  getCrosswalk: (systemId: string) =>
+    api.get<import('@/types').CrosswalkEntry[]>(`/systems/${systemId}/iso42001`),
+  getEvidencePackage: (systemId: string) =>
+    api.post<import('@/types').EvidencePackage>(`/systems/${systemId}/iso42001/package`),
+  generateAIIA: (systemId: string, useLlm = true) =>
+    api.post<{ report: import('@/types').AIIAReport }>(`/systems/${systemId}/ai-ia`, {
+      system_id: systemId,
+      use_llm: useLlm,
+    }),
+}
+
 export default api
