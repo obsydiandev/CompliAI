@@ -1,0 +1,9 @@
+backend/app/**/__pycache__
+backend/**/__pycache__
+backend/*.egg-info/
+backend/.eggs/
+frontend/node_modules/
+frontend/.next/
+*.pyc
+*.db
+frontend/tsconfig.tsbuildinfo
