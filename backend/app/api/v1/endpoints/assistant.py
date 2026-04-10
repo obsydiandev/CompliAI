@@ -41,6 +41,7 @@ router = APIRouter()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _check_ai_system(
     system_id: uuid.UUID, user: User, db: Session
 ) -> tuple[AISystem, OrganizationMembership]:
@@ -87,13 +88,12 @@ def _load_sections_by_number(system: AISystem, db: Session) -> dict[int, dict]:
     tf = db.query(TechnicalFile).filter(TechnicalFile.ai_system_id == system.id).first()
     if not tf or not tf.current_revision_id:
         return {}
-    sections = (
-        db.query(Section).filter(Section.revision_id == tf.current_revision_id).all()
-    )
+    sections = db.query(Section).filter(Section.revision_id == tf.current_revision_id).all()
     return {s.section_number: s.content or {} for s in sections}
 
 
 # ── Draft generation (non-streaming) ─────────────────────────────────────────
+
 
 @router.post("/draft/{section_number}")
 def generate_draft(
@@ -133,6 +133,7 @@ def generate_draft(
 
 # ── Draft generation (streaming SSE) ─────────────────────────────────────────
 
+
 @router.get("/stream/{section_number}")
 def stream_draft(
     system_id: uuid.UUID,
@@ -162,6 +163,7 @@ def stream_draft(
 
 
 # ── Inline suggestions ────────────────────────────────────────────────────────
+
 
 @router.post("/suggestions/{section_number}")
 def section_suggestions(
@@ -196,6 +198,7 @@ def section_suggestions(
 
 # ── Documentation diff ────────────────────────────────────────────────────────
 
+
 class DocDiffRequest(BaseModel):
     previous_metadata: dict
     new_metadata: dict
@@ -226,6 +229,7 @@ def doc_diff(
 
 # ── User Instructions (Art. 13) ───────────────────────────────────────────────
 
+
 @router.post("/user-instructions")
 def user_instructions(
     system_id: uuid.UUID,
@@ -253,6 +257,7 @@ def user_instructions(
 
 
 # ── Q&A over Technical File ───────────────────────────────────────────────────
+
 
 class QARequest(BaseModel):
     question: str
@@ -290,6 +295,7 @@ def qa(
 
 
 # ── Index revision for RAG ────────────────────────────────────────────────────
+
 
 class IndexRequest(BaseModel):
     revision_id: str | None = None

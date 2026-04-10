@@ -73,9 +73,7 @@ def create_portal_session(customer_id: str, return_url: str) -> str:
 
 def construct_webhook_event(payload: bytes, sig_header: str) -> stripe.Event:
     """Verify and construct a Stripe webhook event."""
-    return stripe.Webhook.construct_event(
-        payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
-    )
+    return stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
 
 
 def parse_subscription_from_event(event: stripe.Event) -> dict | None:

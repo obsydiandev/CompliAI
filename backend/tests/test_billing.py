@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 # ── Billing status logic ──────────────────────────────────────────────────────
 
+
 def test_plan_price_ids_defined():
     from app.modules.stripe.billing import PLAN_PRICE_IDS
 
@@ -110,6 +111,7 @@ def test_plan_from_subscription_empty_items():
 
 # ── create_or_get_customer ────────────────────────────────────────────────────
 
+
 @patch("app.modules.stripe.billing.stripe")
 def test_create_or_get_customer_calls_stripe(mock_stripe):
     from app.modules.stripe.billing import create_or_get_customer
@@ -121,6 +123,7 @@ def test_create_or_get_customer_calls_stripe(mock_stripe):
 
 
 # ── create_checkout_session ───────────────────────────────────────────────────
+
 
 @patch("app.modules.stripe.billing.stripe")
 def test_create_checkout_session(mock_stripe):
@@ -137,6 +140,7 @@ def test_create_checkout_session(mock_stripe):
 
 
 # ── create_portal_session ─────────────────────────────────────────────────────
+
 
 @patch("app.modules.stripe.billing.stripe")
 def test_create_portal_session(mock_stripe):

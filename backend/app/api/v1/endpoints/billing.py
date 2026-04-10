@@ -38,6 +38,7 @@ class PortalRequest(BaseModel):
 
 # ── Checkout ──────────────────────────────────────────────────────────────────
 
+
 @router.post("/checkout")
 def create_checkout(
     body: CheckoutRequest,
@@ -73,6 +74,7 @@ def create_checkout(
 
 # ── Portal ────────────────────────────────────────────────────────────────────
 
+
 @router.post("/portal")
 def create_portal(
     body: PortalRequest,
@@ -100,6 +102,7 @@ def create_portal(
 
 # ── Webhook ───────────────────────────────────────────────────────────────────
 
+
 @router.post("/webhook", status_code=status.HTTP_200_OK)
 async def stripe_webhook(
     request: Request,
@@ -113,6 +116,7 @@ async def stripe_webhook(
         # In development without a webhook secret, skip verification
         logger.warning("STRIPE_WEBHOOK_SECRET not set — skipping webhook signature verification")
         import json as _json
+
         try:
             event = _json.loads(payload)
         except Exception:
@@ -161,6 +165,7 @@ def _process_subscription_event(db: Session, sub_info: dict) -> None:
 
 
 # ── Status ────────────────────────────────────────────────────────────────────
+
 
 @router.get("/status/{org_id}")
 def billing_status(

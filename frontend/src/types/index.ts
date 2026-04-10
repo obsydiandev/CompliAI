@@ -156,3 +156,58 @@ export interface IndexResult {
   indexed_sections: number
   revision_id: string
 }
+
+// ── Integrations ──────────────────────────────────────────────────────────────
+
+export type IntegrationType = 'github' | 'gitlab' | 'mlflow' | 'wandb' | 'webhook' | 'ci_cd'
+export type IntegrationStatus = 'connected' | 'disconnected' | 'error'
+
+export interface Integration {
+  id: string
+  org_id: string
+  name: string
+  type: IntegrationType
+  config: Record<string, unknown> | null
+  status: IntegrationStatus
+  last_sync_at: string | null
+  error_message: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DeploymentEvent {
+  id: string
+  ai_system_id: string
+  integration_id: string | null
+  source: string
+  event_type: string
+  version: string | null
+  commit_sha: string | null
+  model_version: string | null
+  is_significant: boolean
+  significance_reason: string | null
+  tf_revision_id: string | null
+  triggered_at: string
+}
+
+export interface WebhookResult {
+  event_id: string
+  is_significant: boolean
+  significance_reason: string
+  revision_created: { revision_id: string; version: string } | null
+}
+
+export interface TestReportResult {
+  filename: string
+  report: {
+    format: string
+    total: number
+    passed: number
+    failed: number
+    skipped: number
+    pass_rate: number | null
+    metrics: Record<string, unknown>
+    raw_summary: string
+  }
+  annex_iv_section4_suggestion: Record<string, string>
+}

@@ -12,6 +12,7 @@ import pytest
 
 # ── Prompt template tests ─────────────────────────────────────────────────────
 
+
 def test_all_section_prompts_present():
     from app.modules.ai_assistant.prompt_templates import SECTION_PROMPTS
 
@@ -25,9 +26,7 @@ def test_section_prompts_contain_placeholders():
     required_placeholders = ["{system_name}", "{existing_content}"]
     for n, template in SECTION_PROMPTS.items():
         for placeholder in required_placeholders:
-            assert placeholder in template, (
-                f"Section {n} prompt missing placeholder {placeholder}"
-            )
+            assert placeholder in template, f"Section {n} prompt missing placeholder {placeholder}"
 
 
 def test_system_prompt_is_non_empty():
@@ -38,6 +37,7 @@ def test_system_prompt_is_non_empty():
 
 
 # ── Usage logger tests ────────────────────────────────────────────────────────
+
 
 def test_estimate_cost_gpt4o():
     from app.modules.ai_assistant.usage_logger import estimate_cost
@@ -84,6 +84,7 @@ def test_log_usage_handles_db_error_gracefully():
 
 # ── Cache tests ───────────────────────────────────────────────────────────────
 
+
 def test_hash_prompt_deterministic():
     from app.modules.ai_assistant.cache import hash_prompt
 
@@ -125,6 +126,7 @@ def test_rate_limit_allows_when_redis_unavailable():
 
 
 # ── Draft generator tests ─────────────────────────────────────────────────────
+
 
 def test_build_section_prompt_uses_system_name():
     from app.modules.ai_assistant.draft_generator import _build_section_prompt
@@ -224,6 +226,7 @@ def test_generate_section_draft_uses_cache(mock_cache, mock_openai_factory):
 
 # ── Suggestions tests ─────────────────────────────────────────────────────────
 
+
 @patch("app.modules.ai_assistant.suggestions.OpenAI")
 def test_get_section_suggestions_returns_dict(mock_openai_class):
     from app.modules.ai_assistant.suggestions import get_section_suggestions
@@ -262,6 +265,7 @@ def test_get_section_suggestions_empty_when_no_missing(mock_openai_class):
 
 # ── Doc diff tests ────────────────────────────────────────────────────────────
 
+
 @patch("app.modules.ai_assistant.doc_diff.OpenAI")
 def test_analyse_documentation_impact_returns_list(mock_openai_class):
     from app.modules.ai_assistant.doc_diff import analyse_documentation_impact
@@ -295,6 +299,7 @@ def test_analyse_documentation_impact_returns_list(mock_openai_class):
 
 # ── RAG tests ─────────────────────────────────────────────────────────────────
 
+
 def test_section_text_formatting():
     from app.modules.ai_assistant.rag import _section_text
 
@@ -326,6 +331,7 @@ def test_content_hash_changes_with_content():
 
 
 # ── User instructions tests ───────────────────────────────────────────────────
+
 
 @patch("app.modules.ai_assistant.user_instructions.OpenAI")
 def test_generate_user_instructions_returns_markdown(mock_openai_class):

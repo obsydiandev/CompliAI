@@ -228,4 +228,37 @@ export const assistantApi = {
     }),
 }
 
+export const integrationApi = {
+  list: (orgId: string) =>
+    api.get<import('@/types').Integration[]>(`/organizations/${orgId}/integrations`),
+  create: (
+    orgId: string,
+    data: { name: string; type: string; credentials?: Record<string, string>; config?: Record<string, string> },
+  ) => api.post<import('@/types').Integration>(`/organizations/${orgId}/integrations`, data),
+  get: (orgId: string, integrationId: string) =>
+    api.get<import('@/types').Integration>(`/organizations/${orgId}/integrations/${integrationId}`),
+  update: (orgId: string, integrationId: string, data: Record<string, unknown>) =>
+    api.put<import('@/types').Integration>(
+      `/organizations/${orgId}/integrations/${integrationId}`,
+      data,
+    ),
+  delete: (orgId: string, integrationId: string) =>
+    api.delete(`/organizations/${orgId}/integrations/${integrationId}`),
+  test: (orgId: string, integrationId: string) =>
+    api.post(`/organizations/${orgId}/integrations/${integrationId}/test`),
+  sync: (orgId: string, integrationId: string) =>
+    api.post(`/organizations/${orgId}/integrations/${integrationId}/sync`),
+  listDeployments: (systemId: string) =>
+    api.get<import('@/types').DeploymentEvent[]>(`/systems/${systemId}/deployments`),
+  uploadTestReport: (systemId: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post<import('@/types').TestReportResult>(
+      `/systems/${systemId}/test-reports`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+  },
+}
+
 export default api

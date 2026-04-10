@@ -33,6 +33,7 @@ _PROMPT_VERSION = "v1.0"
 
 # ── Embedding helpers ─────────────────────────────────────────────────────────
 
+
 def _get_embedding(client: OpenAI, text: str) -> list[float]:
     """Return embedding vector, using Redis cache when available."""
     cached = _cache.get_embedding_cache(text, _EMBED_MODEL)
@@ -64,6 +65,7 @@ def _content_hash(content: dict) -> str:
 
 # ── Indexing ──────────────────────────────────────────────────────────────────
 
+
 def index_revision_sections(
     db: Session,
     *,
@@ -88,9 +90,7 @@ def index_revision_sections(
         c_hash = _content_hash(section.content or {})
 
         existing = (
-            db.query(SectionEmbedding)
-            .filter(SectionEmbedding.section_id == section.id)
-            .first()
+            db.query(SectionEmbedding).filter(SectionEmbedding.section_id == section.id).first()
         )
         if existing and existing.content_hash == c_hash:
             continue  # Already up to date
@@ -143,12 +143,12 @@ def index_revision_sections(
 
 # ── Q&A ───────────────────────────────────────────────────────────────────────
 
+
 def _cosine_search(
     db: Session, revision_id: str, query_vector: list[float], top_k: int = 5
 ) -> list[tuple[SectionEmbedding, float]]:
     """Return top-k most similar sections using pgvector cosine distance."""
     try:
-
         results = (
             db.query(SectionEmbedding)
             .filter(SectionEmbedding.revision_id == revision_id)
@@ -215,13 +215,17 @@ def answer_question(
             context_parts.append(
                 f"[Section {section.section_number}: {section_name}]\n{content_preview}"
             )
-            citations.append({
-                "section_number": section.section_number,
-                "section_name": section_name,
-                "excerpt": content_preview[:200],
-            })
+            citations.append(
+                {
+                    "section_number": section.section_number,
+                    "section_name": section_name,
+                    "excerpt": content_preview[:200],
+                }
+            )
 
-        context = "\n\n---\n\n".join(context_parts) if context_parts else "No relevant content found."
+        context = (
+            "\n\n---\n\n".join(context_parts) if context_parts else "No relevant content found."
+        )
 
         user_prompt = QA_USER_PROMPT.format(context=context, question=question)
 

@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     billing,
     evidence,
     exports,
+    integrations,
     organizations,
     sections,
     technical_files,
@@ -15,6 +16,7 @@ from app.api.v1.endpoints import (
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
+api_router.include_router(integrations.org_router, prefix="/organizations", tags=["integrations"])
 api_router.include_router(ai_systems.router, prefix="/systems", tags=["ai-systems"])
 api_router.include_router(
     technical_files.router,
@@ -38,3 +40,4 @@ api_router.include_router(
     tags=["assistant"],
 )
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
+api_router.include_router(integrations.system_router, prefix="/systems", tags=["integrations"])

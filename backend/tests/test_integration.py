@@ -22,6 +22,7 @@ from app.modules.annex_iv_core.schemas import ANNEX_IV_SECTIONS, SECTION_NAMES
 
 # ── Section completeness integration ─────────────────────────────────────────
 
+
 class MockSection:
     def __init__(self, section_number: int, content: dict):
         self.section_number = section_number
@@ -49,9 +50,7 @@ def test_empty_revision_completeness():
 
 def test_partial_revision_completeness():
     """Section 1 fully complete, others empty → overall = 1/9."""
-    sections = [MockSection(1, _full_content(1))] + [
-        MockSection(n, {}) for n in range(2, 10)
-    ]
+    sections = [MockSection(1, _full_content(1))] + [MockSection(n, {}) for n in range(2, 10)]
     result = calculate_revision_completeness(sections)
     expected = round(1.0 / 9, 4)
     assert result["overall"] == expected
@@ -71,6 +70,7 @@ def test_all_sections_have_required_fields():
 
 
 # ── Trial/billing logic ───────────────────────────────────────────────────────
+
 
 def test_trial_active_within_14_days():
     from app.api.v1.deps import check_billing_access
@@ -115,6 +115,7 @@ def test_trialing_subscription_status_allows_access():
 
 
 # ── Revision diff logic ───────────────────────────────────────────────────────
+
 
 def test_diff_no_changes():
     """Identical sections produce no diff."""
@@ -165,6 +166,7 @@ def _compute_diff(rev_a: dict, rev_b: dict) -> list[dict]:
 
 # ── Intended purpose validator integration ───────────────────────────────────
 
+
 def test_high_risk_triggers_annex_iii_flag():
     from app.modules.annex_iv_core.validator import validate_intended_purpose
 
@@ -184,6 +186,7 @@ def test_non_high_risk_system():
 
 
 # ── Export content correctness ────────────────────────────────────────────────
+
 
 def test_markdown_export_contains_all_sections():
     from app.modules.exports.pdf import generate_markdown_export

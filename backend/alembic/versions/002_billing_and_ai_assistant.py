@@ -31,9 +31,7 @@ def upgrade() -> None:
     op.add_column(
         "organizations", sa.Column("stripe_subscription_status", sa.String(50), nullable=True)
     )
-    op.create_unique_constraint(
-        "uq_org_stripe_customer", "organizations", ["stripe_customer_id"]
-    )
+    op.create_unique_constraint("uq_org_stripe_customer", "organizations", ["stripe_customer_id"])
 
     # ── 3. LLM usage logs ─────────────────────────────────────────────────────
     op.create_table(
@@ -88,9 +86,7 @@ def upgrade() -> None:
     )
     # Replace Text with actual vector type
     op.execute("ALTER TABLE section_embeddings ALTER COLUMN embedding TYPE vector(1536) USING NULL")
-    op.execute(
-        "CREATE INDEX ix_section_embeddings_revision_id ON section_embeddings (revision_id)"
-    )
+    op.execute("CREATE INDEX ix_section_embeddings_revision_id ON section_embeddings (revision_id)")
     op.execute(
         "CREATE INDEX ix_section_embeddings_ai_system_id ON section_embeddings (ai_system_id)"
     )

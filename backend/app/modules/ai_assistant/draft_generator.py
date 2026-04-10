@@ -69,7 +69,12 @@ def generate_section_draft(
 ) -> dict:
     """Generate a draft for a single section. Returns parsed JSON dict."""
     prompt = _build_section_prompt(
-        section_number, system_name, description, intended_purpose, category, annex_iii,
+        section_number,
+        system_name,
+        description,
+        intended_purpose,
+        category,
+        annex_iii,
         existing_content,
     )
     prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
@@ -152,11 +157,16 @@ def stream_section_draft(
     """
     # Check rate limit before starting stream
     if org_id and not _cache.check_rate_limit(org_id):
-        yield "data: {\"error\": \"Rate limit exceeded. Please wait before generating another draft.\"}\n\n"
+        yield 'data: {"error": "Rate limit exceeded. Please wait before generating another draft."}\n\n'
         return
 
     prompt = _build_section_prompt(
-        section_number, system_name, description, intended_purpose, category, annex_iii,
+        section_number,
+        system_name,
+        description,
+        intended_purpose,
+        category,
+        annex_iii,
         existing_content,
     )
 

@@ -1,4 +1,5 @@
 from app.models.ai_system import AISystem
+from app.models.deployment import DeploymentEvent
 from app.models.embedding import SectionEmbedding
 from app.models.evidence import EvidenceAttachment
 from app.models.integration import IntegrationConfig
@@ -21,6 +22,7 @@ __all__ = [
     "ComplianceEvent",
     "Alert",
     "IntegrationConfig",
+    "DeploymentEvent",
     "LLMUsageLog",
     "SectionEmbedding",
 ]
