@@ -1,9 +1,10 @@
-
 from app.modules.annex_iv_core.validator import validate_intended_purpose
 
 
 def test_facial_recognition_is_high_risk():
-    result = validate_intended_purpose("This system uses facial recognition to identify individuals.")
+    result = validate_intended_purpose(
+        "This system uses facial recognition to identify individuals."
+    )
     assert result["is_high_risk"] is True
     assert "biometric" in result["triggers"]
     assert len(result["warnings"]) > 0
@@ -40,13 +41,17 @@ def test_employment_recruitment_is_high_risk():
 
 
 def test_critical_infrastructure_is_high_risk():
-    result = validate_intended_purpose("AI system for managing the energy grid and power distribution.")
+    result = validate_intended_purpose(
+        "AI system for managing the energy grid and power distribution."
+    )
     assert result["is_high_risk"] is True
     assert "critical_infrastructure" in result["triggers"]
 
 
 def test_judicial_system_is_high_risk():
-    result = validate_intended_purpose("AI assistant for judicial proceedings and court decision support.")
+    result = validate_intended_purpose(
+        "AI assistant for judicial proceedings and court decision support."
+    )
     assert result["is_high_risk"] is True
     assert "justice" in result["triggers"]
 

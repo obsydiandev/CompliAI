@@ -99,9 +99,7 @@ def list_systems(
         raise HTTPException(status_code=403, detail="Not a member of this organization")
 
     systems = (
-        db.query(AISystem)
-        .filter(AISystem.org_id == org_id, AISystem.status != "archived")
-        .all()
+        db.query(AISystem).filter(AISystem.org_id == org_id, AISystem.status != "archived").all()
     )
     return [_build_ai_system_read(s, db) for s in systems]
 

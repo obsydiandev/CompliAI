@@ -21,9 +21,9 @@ router = APIRouter()
 
 
 def _org_to_read(org: Organization, db: Session) -> OrganizationRead:
-    member_count = db.query(OrganizationMembership).filter(
-        OrganizationMembership.org_id == org.id
-    ).count()
+    member_count = (
+        db.query(OrganizationMembership).filter(OrganizationMembership.org_id == org.id).count()
+    )
     return OrganizationRead(
         id=org.id,
         name=org.name,
@@ -103,7 +103,9 @@ def update_org(
     return _org_to_read(org, db)
 
 
-@router.post("/{org_id}/invite", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{org_id}/invite", response_model=MessageResponse, status_code=status.HTTP_201_CREATED
+)
 def invite_member(
     invite: MemberInvite,
     ctx: OrgContext = Depends(get_org_context),

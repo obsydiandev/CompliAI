@@ -1,4 +1,3 @@
-
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -29,13 +28,17 @@ def test_create_new_revision_copies_sections(
     db_session: Session,
 ):
     # First, update a section in revision 1.0
-    tf = db_session.query(TechnicalFile).filter(
-        TechnicalFile.ai_system_id == test_ai_system.id
-    ).first()
+    tf = (
+        db_session.query(TechnicalFile)
+        .filter(TechnicalFile.ai_system_id == test_ai_system.id)
+        .first()
+    )
     rev_id = tf.current_revision_id
-    section = db_session.query(Section).filter(
-        Section.revision_id == rev_id, Section.section_number == 1
-    ).first()
+    section = (
+        db_session.query(Section)
+        .filter(Section.revision_id == rev_id, Section.section_number == 1)
+        .first()
+    )
     section.content = {"system_name": "My System", "intended_purpose": "Testing"}
     db_session.flush()
 
@@ -50,9 +53,7 @@ def test_create_new_revision_copies_sections(
     assert new_rev["version"] == "1.1"
 
     # Verify sections were copied
-    new_sections = db_session.query(Section).filter(
-        Section.revision_id == new_rev["id"]
-    ).all()
+    new_sections = db_session.query(Section).filter(Section.revision_id == new_rev["id"]).all()
     assert len(new_sections) == 9
     sec1 = next(s for s in new_sections if s.section_number == 1)
     assert sec1.content.get("system_name") == "My System"
@@ -64,15 +65,19 @@ def test_update_section_recalculates_completeness(
     test_ai_system: AISystem,
     db_session: Session,
 ):
-    tf = db_session.query(TechnicalFile).filter(
-        TechnicalFile.ai_system_id == test_ai_system.id
-    ).first()
+    tf = (
+        db_session.query(TechnicalFile)
+        .filter(TechnicalFile.ai_system_id == test_ai_system.id)
+        .first()
+    )
     rev_id = tf.current_revision_id
 
     # Section 1 has required fields: intended_purpose, use_cases
     response = client.put(
         f"/api/v1/systems/{test_ai_system.id}/technical-file/revisions/{rev_id}/sections/1",
-        json={"content": {"intended_purpose": "Quality control", "use_cases": ["Defect detection"]}},
+        json={
+            "content": {"intended_purpose": "Quality control", "use_cases": ["Defect detection"]}
+        },
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -87,9 +92,11 @@ def test_diff_between_revisions(
     test_ai_system: AISystem,
     db_session: Session,
 ):
-    tf = db_session.query(TechnicalFile).filter(
-        TechnicalFile.ai_system_id == test_ai_system.id
-    ).first()
+    tf = (
+        db_session.query(TechnicalFile)
+        .filter(TechnicalFile.ai_system_id == test_ai_system.id)
+        .first()
+    )
     rev1_id = tf.current_revision_id
 
     # Create revision 2
@@ -117,7 +124,10 @@ def test_diff_between_revisions(
     assert len(diffs) >= 1
     sec1_diff = next((d for d in diffs if d["section_number"] == 1), None)
     assert sec1_diff is not None
-    assert "system_name" in sec1_diff["changed_fields"] or "intended_purpose" in sec1_diff["changed_fields"]
+    assert (
+        "system_name" in sec1_diff["changed_fields"]
+        or "intended_purpose" in sec1_diff["changed_fields"]
+    )
 
 
 def test_completeness_summary(
@@ -126,9 +136,11 @@ def test_completeness_summary(
     test_ai_system: AISystem,
     db_session: Session,
 ):
-    tf = db_session.query(TechnicalFile).filter(
-        TechnicalFile.ai_system_id == test_ai_system.id
-    ).first()
+    tf = (
+        db_session.query(TechnicalFile)
+        .filter(TechnicalFile.ai_system_id == test_ai_system.id)
+        .first()
+    )
     rev_id = tf.current_revision_id
 
     response = client.get(

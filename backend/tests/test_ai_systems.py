@@ -1,4 +1,3 @@
-
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -36,17 +35,13 @@ def test_create_ai_system_auto_creates_tf_and_sections(
     assert tf.current_revision_id is not None
 
     # Check 9 sections were created
-    sections = db_session.query(Section).filter(
-        Section.revision_id == tf.current_revision_id
-    ).all()
+    sections = db_session.query(Section).filter(Section.revision_id == tf.current_revision_id).all()
     assert len(sections) == 9
     section_numbers = sorted([s.section_number for s in sections])
     assert section_numbers == list(range(1, 10))
 
 
-def test_intended_purpose_validator_high_risk(
-    client: TestClient, auth_headers: dict
-):
+def test_intended_purpose_validator_high_risk(client: TestClient, auth_headers: dict):
     response = client.get(
         "/api/v1/systems/validate-purpose",
         json={"intended_purpose": "facial recognition system for border control"},
@@ -58,9 +53,7 @@ def test_intended_purpose_validator_high_risk(
     assert len(data["triggers"]) > 0
 
 
-def test_intended_purpose_validator_low_risk(
-    client: TestClient, auth_headers: dict
-):
+def test_intended_purpose_validator_low_risk(client: TestClient, auth_headers: dict):
     response = client.get(
         "/api/v1/systems/validate-purpose",
         json={"intended_purpose": "A simple product recommendation engine for e-commerce"},
@@ -126,8 +119,6 @@ def test_delete_system_soft_archive(
     assert delete_response.json()["status"] == "archived"
 
     # Should not appear in list
-    list_response = client.get(
-        f"/api/v1/systems/?org_id={test_org.id}", headers=auth_headers
-    )
+    list_response = client.get(f"/api/v1/systems/?org_id={test_org.id}", headers=auth_headers)
     listed_ids = [s["id"] for s in list_response.json()]
     assert system_id not in listed_ids

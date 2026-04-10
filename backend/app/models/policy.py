@@ -12,7 +12,9 @@ class PolicyRule(Base):
     __tablename__ = "policy_rules"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id = Column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     ai_system_id = Column(
         UUID(as_uuid=True), ForeignKey("ai_systems.id", ondelete="CASCADE"), nullable=True
     )
@@ -30,7 +32,9 @@ class PolicyRule(Base):
         nullable=False,
     )
     is_active = Column(Boolean, default=True, nullable=False)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -44,7 +48,9 @@ class ComplianceEvent(Base):
     __tablename__ = "compliance_events"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    rule_id = Column(UUID(as_uuid=True), ForeignKey("policy_rules.id", ondelete="CASCADE"), nullable=False)
+    rule_id = Column(
+        UUID(as_uuid=True), ForeignKey("policy_rules.id", ondelete="CASCADE"), nullable=False
+    )
     ai_system_id = Column(
         UUID(as_uuid=True), ForeignKey("ai_systems.id", ondelete="CASCADE"), nullable=False
     )

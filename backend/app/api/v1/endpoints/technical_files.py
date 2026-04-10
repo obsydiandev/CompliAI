@@ -49,9 +49,11 @@ def get_technical_file(
 
     current_rev = None
     if tf.current_revision_id:
-        rev = db.query(TechnicalFileRevision).filter(
-            TechnicalFileRevision.id == tf.current_revision_id
-        ).first()
+        rev = (
+            db.query(TechnicalFileRevision)
+            .filter(TechnicalFileRevision.id == tf.current_revision_id)
+            .first()
+        )
         if rev:
             current_rev = RevisionRead.model_validate(rev)
 
@@ -135,9 +137,7 @@ def create_revision(
     # Copy sections from current revision
     if tf.current_revision_id:
         prev_sections = (
-            db.query(Section)
-            .filter(Section.revision_id == tf.current_revision_id)
-            .all()
+            db.query(Section).filter(Section.revision_id == tf.current_revision_id).all()
         )
         for sec in prev_sections:
             new_section = Section(
@@ -150,13 +150,15 @@ def create_revision(
             db.add(new_section)
     else:
         for num in range(1, 10):
-            db.add(Section(
-                id=uuid.uuid4(),
-                revision_id=new_rev.id,
-                section_number=num,
-                content={},
-                completeness_score=0.0,
-            ))
+            db.add(
+                Section(
+                    id=uuid.uuid4(),
+                    revision_id=new_rev.id,
+                    section_number=num,
+                    content={},
+                    completeness_score=0.0,
+                )
+            )
 
     tf.current_revision_id = new_rev.id
     db.commit()
@@ -237,10 +239,12 @@ def diff_revisions(
         all_keys = set(old.keys()) | set(new.keys())
         changed = [k for k in all_keys if old.get(k) != new.get(k)]
         if changed:
-            diffs.append(RevisionDiff(
-                section_number=num,
-                changed_fields=changed,
-                old_values={k: old.get(k) for k in changed},
-                new_values={k: new.get(k) for k in changed},
-            ))
+            diffs.append(
+                RevisionDiff(
+                    section_number=num,
+                    changed_fields=changed,
+                    old_values={k: old.get(k) for k in changed},
+                    new_values={k: new.get(k) for k in changed},
+                )
+            )
     return diffs

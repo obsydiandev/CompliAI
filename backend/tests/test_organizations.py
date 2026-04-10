@@ -41,9 +41,7 @@ def test_create_organization_duplicate_slug(
     assert response2.json()["slug"] != slug  # should be slug-1 or similar
 
 
-def test_list_organizations(
-    client: TestClient, auth_headers: dict, test_org: Organization
-):
+def test_list_organizations(client: TestClient, auth_headers: dict, test_org: Organization):
     response = client.get("/api/v1/organizations/", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()

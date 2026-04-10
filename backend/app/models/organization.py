@@ -23,7 +23,9 @@ class Organization(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
-    members = relationship("OrganizationMembership", back_populates="org", cascade="all, delete-orphan")
+    members = relationship(
+        "OrganizationMembership", back_populates="org", cascade="all, delete-orphan"
+    )
     ai_systems = relationship("AISystem", back_populates="org")
 
 
@@ -31,7 +33,9 @@ class OrganizationMembership(Base):
     __tablename__ = "organization_memberships"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id = Column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role = Column(
         Enum("admin", "ml_owner", "legal", "viewer", name="membership_role_enum"),

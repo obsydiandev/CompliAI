@@ -144,13 +144,15 @@ def test_ai_system(db_session: Session, test_user: User, test_org: Organization)
     db_session.flush()
 
     for num in range(1, 10):
-        db_session.add(Section(
-            id=uuid.uuid4(),
-            revision_id=revision.id,
-            section_number=num,
-            content={},
-            completeness_score=0.0,
-        ))
+        db_session.add(
+            Section(
+                id=uuid.uuid4(),
+                revision_id=revision.id,
+                section_number=num,
+                content={},
+                completeness_score=0.0,
+            )
+        )
 
     tf.current_revision_id = revision.id
     db_session.flush()

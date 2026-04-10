@@ -84,7 +84,12 @@ def export_json(
     db: Session = Depends(get_db),
 ):
     rev, system, org = _load_revision(system_id, revision_id, current_user, db)
-    sections = db.query(Section).filter(Section.revision_id == rev.id).order_by(Section.section_number).all()
+    sections = (
+        db.query(Section)
+        .filter(Section.revision_id == rev.id)
+        .order_by(Section.section_number)
+        .all()
+    )
 
     return {
         "@context": "https://compliai.eu/annex-iv",

@@ -196,8 +196,7 @@ def _build_template_context(revision, ai_system, org) -> dict:
         score, _ = calculate_section_completeness(section.section_number, section.content or {})
         section_scores[section.section_number] = score
         section_evidences = [
-            ev for ev in (revision.evidence_attachments or [])
-            if ev.section_id == section.id
+            ev for ev in (revision.evidence_attachments or []) if ev.section_id == section.id
         ]
         evidence_by_section[section.section_number] = section_evidences
 
@@ -280,8 +279,7 @@ def generate_markdown_export(revision, ai_system, org) -> str:
         # Evidence for this section
         if section:
             section_evidence = [
-                ev for ev in (revision.evidence_attachments or [])
-                if ev.section_id == section.id
+                ev for ev in (revision.evidence_attachments or []) if ev.section_id == section.id
             ]
             if section_evidence:
                 lines.append("**Supporting Evidence:**")

@@ -23,7 +23,10 @@ class TechnicalFile(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ai_system_id = Column(
-        UUID(as_uuid=True), ForeignKey("ai_systems.id", ondelete="CASCADE"), unique=True, nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("ai_systems.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
     )
     current_revision_id = Column(
         UUID(as_uuid=True),
@@ -51,9 +54,13 @@ class TechnicalFileRevision(Base):
     __tablename__ = "technical_file_revisions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tf_id = Column(UUID(as_uuid=True), ForeignKey("technical_files.id", ondelete="CASCADE"), nullable=False)
+    tf_id = Column(
+        UUID(as_uuid=True), ForeignKey("technical_files.id", ondelete="CASCADE"), nullable=False
+    )
     version = Column(String(50), nullable=False)
-    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    author_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     linked_commit_sha = Column(String(40), nullable=True)
     linked_model_version = Column(String(100), nullable=True)
     status = Column(
@@ -75,14 +82,18 @@ class Section(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     revision_id = Column(
-        UUID(as_uuid=True), ForeignKey("technical_file_revisions.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("technical_file_revisions.id", ondelete="CASCADE"),
+        nullable=False,
     )
     section_number = Column(Integer, nullable=False)
     content = Column(JSON, nullable=False, default=dict)
     completeness_score = Column(Float, default=0.0, nullable=False)
     last_updated_at = Column(DateTime, default=func.now(), nullable=False)
 
-    __table_args__ = (UniqueConstraint("revision_id", "section_number", name="uq_section_per_revision"),)
+    __table_args__ = (
+        UniqueConstraint("revision_id", "section_number", name="uq_section_per_revision"),
+    )
 
     revision = relationship("TechnicalFileRevision", back_populates="sections")
     evidence_attachments = relationship("EvidenceAttachment", back_populates="section")

@@ -1,4 +1,3 @@
-
 from app.modules.annex_iv_core.completeness import (
     calculate_revision_completeness,
     calculate_section_completeness,
