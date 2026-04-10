@@ -137,15 +137,14 @@ export default function PMMPage() {
     queryFn: () => pmmApi.get(id).then((r) => r.data),
   })
 
-  // Initialize draft fields from loaded PMM data
+  // Initialize draft fields from loaded PMM data — only when pmm changes and not in edit mode
   useEffect(() => {
     if (pmm && !editing) {
       setDraftPlan(String(pmm.content.pmm_plan || ''))
       setDraftProcedure(String(pmm.content.incident_reporting_procedure || ''))
       setDraftFrequency(String(pmm.content.reporting_frequency || ''))
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pmm])
+  }, [pmm, editing])
 
   const { data: metricsLog } = useQuery({
     queryKey: ['pmm-metrics', id],

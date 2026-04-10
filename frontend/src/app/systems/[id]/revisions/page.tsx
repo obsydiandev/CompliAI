@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
@@ -152,11 +152,13 @@ export default function RevisionsPage() {
     queryFn: () => tfApi.listRevisions(id).then((r) => r.data),
   })
 
-  // Auto-select latest two revisions when data loads
-  if (revisions && revisions.length >= 2 && !baseRevId) {
-    setBaseRevId(revisions[1].id)
-    setCompareRevId(revisions[0].id)
-  }
+  // Auto-select latest two revisions once data loads
+  useEffect(() => {
+    if (revisions && revisions.length >= 2 && !baseRevId) {
+      setBaseRevId(revisions[1].id)
+      setCompareRevId(revisions[0].id)
+    }
+  }, [revisions]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const canDiff = !!(baseRevId && compareRevId && baseRevId !== compareRevId)
 

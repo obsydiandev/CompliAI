@@ -254,7 +254,9 @@ def get_llm_usage(
         model_stats[mdl]["cost_usd"] += log.cost_usd or 0.0
 
     # Round costs
-    for stats in list(feature_stats.values()) + list(model_stats.values()):
+    for stats in feature_stats.values():
+        stats["cost_usd"] = round(stats["cost_usd"], 6)
+    for stats in model_stats.values():
         stats["cost_usd"] = round(stats["cost_usd"], 6)
 
     return {

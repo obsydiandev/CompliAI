@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 from celery import shared_task
@@ -19,6 +20,25 @@ def _get_db_session():
     from app.database import SessionLocal
 
     return SessionLocal()
+
+
+@dataclass
+class _CheckContext:
+    """Bundles all model classes and helpers needed by _check_system."""
+
+    db: Any
+    alert_dispatcher: Any
+    evaluate_rule: Any
+    build_system_snapshot: Any
+    AISystem: Any
+    TechnicalFile: Any
+    TechnicalFileRevision: Any
+    Section: Any
+    EvidenceAttachment: Any
+    DeploymentEvent: Any
+    PolicyRule: Any
+    ComplianceEvent: Any
+    Alert: Any
 
 
 @shared_task(name="app.tasks.compliance.run_periodic_compliance_checks", bind=True, max_retries=3)
@@ -53,12 +73,25 @@ def run_periodic_compliance_checks(self) -> dict[str, Any]:
         total_violations = 0
         total_events_created = 0
 
+        ctx = _CheckContext(
+            db=db,
+            alert_dispatcher=alert_dispatcher,
+            evaluate_rule=evaluate_rule,
+            build_system_snapshot=build_system_snapshot,
+            AISystem=AISystem,
+            TechnicalFile=TechnicalFile,
+            TechnicalFileRevision=TechnicalFileRevision,
+            Section=Section,
+            EvidenceAttachment=EvidenceAttachment,
+            DeploymentEvent=DeploymentEvent,
+            PolicyRule=PolicyRule,
+            ComplianceEvent=ComplianceEvent,
+            Alert=Alert,
+        )
+
         for system in systems:
             try:
-                _check_system(system, db, alert_dispatcher, evaluate_rule, build_system_snapshot,
-                              AISystem, TechnicalFile, TechnicalFileRevision, Section,
-                              EvidenceAttachment, DeploymentEvent, PolicyRule,
-                              ComplianceEvent, Alert)
+                _check_system(system, ctx)
                 db.commit()
             except Exception as exc:
                 logger.error(
@@ -86,76 +119,62 @@ def run_periodic_compliance_checks(self) -> dict[str, Any]:
         db.close()
 
 
-def _check_system(
-    system,
-    db,
-    alert_dispatcher,
-    evaluate_rule,
-    build_system_snapshot,
-    AISystem,
-    TechnicalFile,
-    TechnicalFileRevision,
-    Section,
-    EvidenceAttachment,
-    DeploymentEvent,
-    PolicyRule,
-    ComplianceEvent,
-    Alert,
-) -> tuple[int, int]:
+def _check_system(system, ctx: _CheckContext) -> tuple[int, int]:
     """Run policy checks for a single system. Returns (violations, events_created)."""
+    db = ctx.db
     # Resolve current revision
-    tf = db.query(TechnicalFile).filter(TechnicalFile.ai_system_id == system.id).first()
+    tf = db.query(ctx.TechnicalFile).filter(ctx.TechnicalFile.ai_system_id == system.id).first()
     revision = None
     if tf:
         if tf.current_revision_id:
             revision = (
-                db.query(TechnicalFileRevision)
-                .filter(TechnicalFileRevision.id == tf.current_revision_id)
+                db.query(ctx.TechnicalFileRevision)
+                .filter(ctx.TechnicalFileRevision.id == tf.current_revision_id)
                 .first()
             )
         if not revision:
             revision = (
-                db.query(TechnicalFileRevision)
-                .filter(TechnicalFileRevision.tf_id == tf.id)
-                .order_by(TechnicalFileRevision.created_at.desc())
+                db.query(ctx.TechnicalFileRevision)
+                .filter(ctx.TechnicalFileRevision.tf_id == tf.id)
+                .order_by(ctx.TechnicalFileRevision.created_at.desc())
                 .first()
             )
 
     sections = []
     if revision:
-        sections = db.query(Section).filter(Section.revision_id == revision.id).all()
+        sections = db.query(ctx.Section).filter(ctx.Section.revision_id == revision.id).all()
 
     evidence_counts: dict[int, int] = {}
     for sec in sections:
         evidence_counts[sec.section_number] = (
-            db.query(EvidenceAttachment)
+            db.query(ctx.EvidenceAttachment)
             .filter(
-                EvidenceAttachment.ai_system_id == system.id,
-                EvidenceAttachment.section_number == sec.section_number,
+                ctx.EvidenceAttachment.ai_system_id == system.id,
+                ctx.EvidenceAttachment.section_number == sec.section_number,
             )
             .count()
         )
 
     unlinked = (
-        db.query(DeploymentEvent)
+        db.query(ctx.DeploymentEvent)
         .filter(
-            DeploymentEvent.ai_system_id == system.id,
-            DeploymentEvent.is_significant == True,  # noqa: E712
-            DeploymentEvent.tf_revision_id.is_(None),
+            ctx.DeploymentEvent.ai_system_id == system.id,
+            ctx.DeploymentEvent.is_significant == True,  # noqa: E712
+            ctx.DeploymentEvent.tf_revision_id.is_(None),
         )
         .count()
     )
 
-    snapshot = build_system_snapshot(system, revision, sections, evidence_counts, unlinked)
+    snapshot = ctx.build_system_snapshot(system, revision, sections, evidence_counts, unlinked)
 
     rules = (
-        db.query(PolicyRule)
+        db.query(ctx.PolicyRule)
         .filter(
-            PolicyRule.org_id == system.org_id,
-            PolicyRule.is_active == True,  # noqa: E712
+            ctx.PolicyRule.org_id == system.org_id,
+            ctx.PolicyRule.is_active == True,  # noqa: E712
         )
         .filter(
-            (PolicyRule.ai_system_id == system.id) | (PolicyRule.ai_system_id.is_(None))
+            (ctx.PolicyRule.ai_system_id == system.id) | (ctx.PolicyRule.ai_system_id.is_(None))
         )
         .all()
     )
@@ -164,24 +183,24 @@ def _check_system(
     events_created = 0
 
     for rule in rules:
-        violated, detail = evaluate_rule(rule.condition, snapshot)
+        violated, detail = ctx.evaluate_rule(rule.condition, snapshot)
         if not violated:
             continue
 
         violations += 1
         existing = (
-            db.query(ComplianceEvent)
+            db.query(ctx.ComplianceEvent)
             .filter(
-                ComplianceEvent.rule_id == rule.id,
-                ComplianceEvent.ai_system_id == system.id,
-                ComplianceEvent.status == "open",
+                ctx.ComplianceEvent.rule_id == rule.id,
+                ctx.ComplianceEvent.ai_system_id == system.id,
+                ctx.ComplianceEvent.status == "open",
             )
             .first()
         )
         if existing:
             continue
 
-        event = ComplianceEvent(
+        event = ctx.ComplianceEvent(
             id=uuid.uuid4(),
             rule_id=rule.id,
             ai_system_id=system.id,
@@ -191,7 +210,7 @@ def _check_system(
         db.add(event)
         db.flush()
 
-        alert = Alert(
+        alert = ctx.Alert(
             id=uuid.uuid4(),
             compliance_event_id=event.id,
             channel="in_app",
@@ -199,7 +218,7 @@ def _check_system(
         db.add(alert)
         events_created += 1
 
-        alert_dispatcher.dispatch_alert(
+        ctx.alert_dispatcher.dispatch_alert(
             channel="in_app",
             recipient=None,
             payload={
