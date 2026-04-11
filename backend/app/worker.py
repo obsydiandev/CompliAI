@@ -21,7 +21,12 @@ celery_app = Celery(
     "compliai",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=["app.tasks.compliance"],
+    include=[
+        "app.tasks.compliance",
+        "app.tasks.email_nurturing",
+        "app.tasks.wizard_reminders",
+        "app.tasks.upsell_sequence",
+    ],
 )
 
 celery_app.conf.update(
@@ -39,6 +44,14 @@ celery_app.conf.update(
         "daily-pmm-reminder": {
             "task": "app.tasks.compliance.send_pmm_reminders",
             "schedule": crontab(hour=8, minute=0),  # Daily at 08:00 UTC
+        },
+        "daily-wizard-reminders": {
+            "task": "app.tasks.wizard_reminders.send_wizard_reminders_daily",
+            "schedule": crontab(hour=9, minute=0),  # Daily at 09:00 UTC
+        },
+        "daily-upsell-sequence": {
+            "task": "app.tasks.upsell_sequence.send_upsell_emails_daily",
+            "schedule": crontab(hour=10, minute=0),  # Daily at 10:00 UTC
         },
     },
 )

@@ -44,6 +44,26 @@ class Settings(BaseSettings):
     SSO_OIDC_CLIENT_SECRET: str = ""
     SSO_OIDC_DISCOVERY_URL: str = ""  # e.g. https://dev-xxx.okta.com/.well-known/openid-configuration
 
+    # ── Resend (transactional email) ──────────────────────────────────────────
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = "noreply@compliai.io"
+
+    # ── Stripe Lite / Partner price IDs ──────────────────────────────────────
+    STRIPE_PRICE_LITE: str = ""           # 299 EUR one-time (Lite Wizard)
+    STRIPE_PRICE_LITE_PLUS: str = ""      # 99 EUR/month (Lite+ annual)
+    STRIPE_PRICE_PARTNER: str = ""        # 300 EUR/month (White-Label partner)
+    STRIPE_PRICE_STARTER: str = "price_starter"
+    STRIPE_PRICE_PRO: str = "price_pro"
+
+    # ── BetterUptime status page ──────────────────────────────────────────────
+    BETTERUPTIME_API_KEY: str = ""
+
+    # ── BYOK — Bring Your Own Key ─────────────────────────────────────────────
+    BYOK_DEFAULT_PROVIDER: str = ""       # "aws" | "azure" | "gcp" (org-level override)
+
+    # ── Slack (compliance alerts) ─────────────────────────────────────────────
+    SLACK_WEBHOOK_URL: str = ""
+
     # ── GitLab OAuth 2.0 (T3.2) ──────────────────────────────────────────────
     GITLAB_OAUTH_CLIENT_ID: str = ""
     GITLAB_OAUTH_CLIENT_SECRET: str = ""

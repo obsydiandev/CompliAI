@@ -132,6 +132,14 @@ async def stripe_webhook(
     if sub_info:
         _process_subscription_event(db, sub_info)
 
+    # Handle one-time Lite payment (checkout.session.completed with mode=payment)
+    event_type = event.get("type") if isinstance(event, dict) else getattr(event, "type", None)
+    if event_type == "checkout.session.completed":
+        session_obj = (event.get("data", {}).get("object", {})
+                       if isinstance(event, dict) else event["data"]["object"])
+        if session_obj.get("mode") == "payment":
+            _process_lite_payment(db, session_obj)
+
     return {"received": True}
 
 
@@ -162,6 +170,39 @@ def _process_subscription_event(db: Session, sub_info: dict) -> None:
         sub_info["status"],
         sub_info.get("plan", "?"),
     )
+
+
+def _process_lite_payment(db: Session, session_obj: dict) -> None:
+    """Mark a WizardSession as paid after a one-time Stripe checkout.session.completed."""
+    from app.models.wizard_session import WizardSession
+
+    wizard_token = session_obj.get("metadata", {}).get("wizard_token")
+    if not wizard_token:
+        return
+
+    wizard_session = (
+        db.query(WizardSession)
+        .filter(WizardSession.session_token == wizard_token)
+        .first()
+    )
+    if not wizard_session:
+        logger.warning("No wizard session found for token %s", wizard_token)
+        return
+
+    wizard_session.payment_confirmed = True
+    wizard_session.stripe_checkout_session_id = session_obj.get("id")
+    wizard_session.stripe_payment_intent_id = session_obj.get("payment_intent")
+    db.commit()
+    logger.info("Lite payment confirmed for wizard session %s", wizard_token)
+
+    # Send post-purchase email
+    if wizard_session.email:
+        try:
+            from app.tasks.wizard_reminders import send_post_purchase_email
+
+            send_post_purchase_email.delay(wizard_token)
+        except Exception as exc:
+            logger.warning("Failed to schedule post-purchase email: %s", exc)
 
 
 # ── Status ────────────────────────────────────────────────────────────────────

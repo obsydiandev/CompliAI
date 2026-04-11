@@ -7,10 +7,13 @@ from app.api.v1.endpoints import (
     assistant,
     auth,
     billing,
+    byok,
+    classifier,
     evidence,
     exports,
     integrations,
     organizations,
+    partner,
     pmm,
     policy,
     portfolio,
@@ -18,6 +21,7 @@ from app.api.v1.endpoints import (
     sso,
     technical_files,
     templates,
+    wizard,
 )
 
 api_router = APIRouter()
@@ -35,6 +39,11 @@ api_router.include_router(
     portfolio.router,
     prefix="/organizations/{org_id}/reports",
     tags=["portfolio"],
+)
+api_router.include_router(
+    byok.router,
+    prefix="/organizations/{org_id}/byok",
+    tags=["byok"],
 )
 api_router.include_router(ai_systems.router, prefix="/systems", tags=["ai-systems"])
 api_router.include_router(
@@ -81,3 +90,7 @@ api_router.include_router(
     prefix="/organizations/{org_id}/api-keys",
     tags=["api-keys"],
 )
+# ── Lite / Wizard / Classifier (PRD v1.15) ──────────────────────────────────
+api_router.include_router(classifier.router, prefix="/classifier", tags=["classifier"])
+api_router.include_router(wizard.router, prefix="/wizard", tags=["wizard"])
+api_router.include_router(partner.router, prefix="/partners", tags=["partner"])

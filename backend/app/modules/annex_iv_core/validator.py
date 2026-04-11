@@ -1,3 +1,13 @@
+"""Annex IV intended purpose validator with deterministic keyword detection
+and optional LLM-assisted over-scoping analysis (T_p10).
+"""
+
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 HIGH_RISK_TRIGGERS: dict[str, list[str]] = {
     "biometric": [
         "biometric",
@@ -115,3 +125,103 @@ def validate_intended_purpose(text: str) -> dict:
         "triggers": triggered_categories,
         "warnings": warnings,
     }
+
+
+def check_intended_purpose_overscoping(
+    intended_purpose_text: str,
+    declared_risk_category: str,
+) -> dict:
+    """LLM-assisted over-scoping analysis (T_p10).
+
+    Analyses the 'intended purpose' field to detect if the text inadvertently
+    describes a use case broader than the declared risk category — which would
+    pull the system into a more restrictive Annex III classification.
+
+    Args:
+        intended_purpose_text: the free-text intended purpose from the technical file
+        declared_risk_category: "high_risk" | "limited_risk" | "minimal_risk"
+
+    Returns dict with:
+        overscoping_detected (bool)
+        suggested_risk_level (str)
+        explanation (str)
+        recommendations (list[str])
+    """
+    # First run deterministic check
+    det_result = validate_intended_purpose(intended_purpose_text)
+
+    # If deterministic check finds high risk but system declared lower, flag it
+    if det_result["is_high_risk"] and declared_risk_category != "high_risk":
+        return {
+            "overscoping_detected": True,
+            "suggested_risk_level": "high_risk",
+            "explanation": (
+                "The intended purpose description contains terms associated with Annex III "
+                "high-risk categories, but the system is declared as non-high-risk. "
+                "This discrepancy should be resolved before submitting the Technical File."
+            ),
+            "triggered_categories": det_result["triggers"],
+            "recommendations": det_result["warnings"],
+            "source": "deterministic",
+        }
+
+    # LLM analysis for deeper context
+    try:
+        from app.config import settings
+
+        if not settings.OPENAI_API_KEY:
+            return {
+                "overscoping_detected": False,
+                "suggested_risk_level": declared_risk_category,
+                "explanation": "LLM analysis skipped — OPENAI_API_KEY not configured.",
+                "recommendations": [],
+                "source": "skipped",
+            }
+
+        import json
+
+        from openai import OpenAI
+
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        prompt = f"""Analyse this AI system intended purpose for EU AI Act Annex III over-scoping risk.
+
+Intended purpose: "{intended_purpose_text}"
+Declared risk level: {declared_risk_category}
+
+Determine if the intended purpose text is broader than the declared risk level suggests,
+or if it inadvertently describes an Annex III high-risk use case.
+
+Respond with JSON:
+{{
+  "overscoping_detected": true/false,
+  "suggested_risk_level": "high_risk" | "limited_risk" | "minimal_risk",
+  "explanation": "2-3 sentence analysis",
+  "recommendations": ["action 1", "action 2"]
+}}"""
+
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an EU AI Act compliance expert specialising in risk classification.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.1,
+            max_tokens=400,
+            response_format={"type": "json_object"},
+        )
+        data = json.loads(response.choices[0].message.content or "{}")
+        data["source"] = "llm"
+        return data
+
+    except Exception as exc:
+        logger.warning("LLM over-scoping check failed: %s", exc)
+        return {
+            "overscoping_detected": False,
+            "suggested_risk_level": declared_risk_category,
+            "explanation": f"LLM analysis failed: {exc}",
+            "recommendations": [],
+            "source": "error",
+        }

@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 PLAN_PRICE_IDS: dict[str, str] = {
     "starter": getattr(settings, "STRIPE_PRICE_STARTER", "price_starter"),
     "pro": getattr(settings, "STRIPE_PRICE_PRO", "price_pro"),
+    "lite": getattr(settings, "STRIPE_PRICE_LITE", "price_lite"),
+    "lite_plus": getattr(settings, "STRIPE_PRICE_LITE_PLUS", "price_lite_plus"),
+    "partner": getattr(settings, "STRIPE_PRICE_PARTNER", "price_partner"),
 }
 
 

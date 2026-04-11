@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -25,6 +25,12 @@ class Organization(Base):
     stripe_subscription_status = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    # ── BYOK — Bring Your Own Key (Phase 2) ──────────────────────────────────
+    byok_kms_provider = Column(String(50), nullable=True)   # "aws" | "azure" | "gcp"
+    byok_kms_key_arn = Column(Text, nullable=True)           # KMS key identifier
+    byok_openai_key = Column(Text, nullable=True)            # Own LLM API key (encrypted)
+    stateless_mode = Column(Boolean, nullable=False, default=False)
 
     members = relationship(
         "OrganizationMembership", back_populates="org", cascade="all, delete-orphan"
