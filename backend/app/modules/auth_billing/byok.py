@@ -134,7 +134,7 @@ def decrypt_field(provider: str, key_arn: str, encrypted_payload: str) -> str:
     elif provider == "azure":
         plaintext_dek = _azure_decrypt_dek(key_arn, encrypted_dek)
     elif provider == "gcp":
-        plaintext_dek = _gcp_decrypt_dek(key_arn, ciphertext)
+        plaintext_dek = _gcp_decrypt_dek(key_arn, encrypted_dek)
     else:
         raise ValueError(f"Unknown KMS provider: {provider}")
 
