@@ -48,7 +48,7 @@ def send_upsell_emails_daily(self) -> dict[str, Any]:
     db = SessionLocal()
     sent = 0
     try:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(timezone.utc)
         cutoff = now - timedelta(days=60)
 
         sessions = (
@@ -56,7 +56,7 @@ def send_upsell_emails_daily(self) -> dict[str, Any]:
             .filter(
                 WizardSession.payment_confirmed.is_(True),
                 WizardSession.email.isnot(None),
-                WizardSession.updated_at < cutoff,
+                WizardSession.updated_at < cutoff.replace(tzinfo=None),
                 WizardSession.data_purged_at.is_(None),  # not already purged
             )
             .all()

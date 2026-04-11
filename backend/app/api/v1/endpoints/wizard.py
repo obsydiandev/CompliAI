@@ -203,8 +203,9 @@ def save_block(
     # Persist system_name / org_name from B1 answers
     if block_id == "B1":
         b1 = body.answers
-        if b1.get("B1Q1") and not session.system_name:
-            session.system_name = str(b1["B1Q1"])
+        b1q1 = b1.get("B1Q1")
+        if b1q1 and not session.system_name:
+            session.system_name = str(b1q1)
 
     db.commit()
     db.refresh(session)

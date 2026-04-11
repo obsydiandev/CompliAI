@@ -56,7 +56,7 @@ def send_wizard_reminders_daily(self) -> dict[str, Any]:
     db = SessionLocal()
     reminded = 0
     try:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(timezone.utc)
         reminder_window_start = now - timedelta(days=6)
         reminder_window_end = now - timedelta(hours=24)
 
@@ -65,9 +65,9 @@ def send_wizard_reminders_daily(self) -> dict[str, Any]:
             .filter(
                 WizardSession.payment_confirmed.is_(False),
                 WizardSession.email.isnot(None),
-                WizardSession.created_at >= reminder_window_start,
-                WizardSession.created_at <= reminder_window_end,
-                WizardSession.expires_at > now,
+                WizardSession.created_at >= reminder_window_start.replace(tzinfo=None),
+                WizardSession.created_at <= reminder_window_end.replace(tzinfo=None),
+                WizardSession.expires_at > now.replace(tzinfo=None),
             )
             .all()
         )
@@ -75,7 +75,8 @@ def send_wizard_reminders_daily(self) -> dict[str, Any]:
         for session in sessions:
             try:
                 resume_url = f"{settings.FRONTEND_URL}/wizard/{session.session_token}"
-                days_left = max(0, (session.expires_at - now).days) if session.expires_at else 3
+                now_naive = now.replace(tzinfo=None)
+                days_left = max(0, (session.expires_at - now_naive).days) if session.expires_at else 3
                 html = f"""
                 <div style="font-family: sans-serif; max-width: 600px;">
                   <h2>Your Annex IV Technical File is waiting</h2>

@@ -75,11 +75,11 @@ def _gcp_encrypt_dek(key_name: str, plaintext_dek: bytes) -> bytes:
     return resp.ciphertext
 
 
-def _gcp_decrypt_dek(key_name: str, ciphertext: bytes) -> bytes:
+def _gcp_decrypt_dek(key_name: str, encrypted_dek: bytes) -> bytes:
     from google.cloud import kms as google_kms  # type: ignore
 
     client = google_kms.KeyManagementServiceClient()
-    resp = client.decrypt(request={"name": key_name, "ciphertext": ciphertext})
+    resp = client.decrypt(request={"name": key_name, "ciphertext": encrypted_dek})
     return resp.plaintext
 
 

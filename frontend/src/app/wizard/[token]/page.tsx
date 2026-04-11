@@ -151,6 +151,8 @@ export default function WizardSessionPage() {
     return required.every(q => ans[q.id] && String(ans[q.id]).trim())
   })
 
+  const BLOCKS_SHOWING_RISK = ['B2', 'B3', 'B4', 'B5', 'B6', 'B7']
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top bar */}
@@ -212,7 +214,7 @@ export default function WizardSessionPage() {
         {/* Main content */}
         <div className="flex-1 min-w-0 space-y-6">
           {/* Risk badge after B1/B2 */}
-          {riskResult && (activeBlock === 'B2' || activeBlock === 'B3' || activeBlock === 'B4' || activeBlock === 'B5' || activeBlock === 'B6' || activeBlock === 'B7') && (
+          {riskResult && BLOCKS_SHOWING_RISK.includes(activeBlock) && (
             <RiskBadgeInline riskLevel={riskResult.risk_level} justification={riskResult.justification} />
           )}
 
