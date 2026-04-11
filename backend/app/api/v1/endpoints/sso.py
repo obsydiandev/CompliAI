@@ -169,6 +169,11 @@ def list_providers():
             label="OIDC (Okta / Auth0 / custom)",
             enabled=_provider_enabled("oidc"),
         ),
+        SSOProviderInfo(
+            provider="saml",
+            label="SAML 2.0 (Enterprise IdP)",
+            enabled=bool(getattr(settings, "SAML_IDP_ENTITY_ID", "")),
+        ),
     ]
 
 
@@ -250,3 +255,97 @@ async def callback(
     _, redirect_to = parse_state(body.state)
 
     return CallbackResponse(access_token=jwt_token, redirect_to=redirect_to)
+
+
+# ── SAML 2.0 endpoints (T5.1) ────────────────────────────────────────────────
+
+
+from app.modules.auth_billing import saml as saml_module  # noqa: E402
+
+
+def _saml_request_data(request_host: str, is_https: bool, post_data: dict | None = None) -> dict:
+    """Build the request dict expected by python3-saml."""
+    return {
+        "https": "on" if is_https else "off",
+        "http_host": request_host,
+        "script_name": "/api/v1/sso/saml",
+        "server_port": "443" if is_https else "80",
+        "get_data": {},
+        "post_data": post_data or {},
+    }
+
+
+@router.get("/saml/metadata")
+def saml_metadata():
+    """Return the SP metadata XML for SAML IdP registration."""
+    try:
+        xml = saml_module.get_metadata_xml()
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    from fastapi.responses import Response
+
+    return Response(content=xml, media_type="application/xml")
+
+
+class _SamlAcsRequest(BaseModel):
+    saml_response: str  # base64-encoded SAMLResponse POST parameter
+    request_host: str = "app.compliai.io"
+    is_https: bool = True
+
+
+class _SamlAcsResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    redirect_to: str = "/dashboard"
+
+
+@router.post("/saml/acs", response_model=_SamlAcsResponse)
+def saml_acs(
+    body: _SamlAcsRequest,
+    db: Session = Depends(get_db),
+):
+    """Assert Consumer Service — process SAMLResponse from the IdP."""
+    try:
+        request_data = _saml_request_data(
+            body.request_host,
+            body.is_https,
+            post_data={"SAMLResponse": body.saml_response},
+        )
+        claims = saml_module.process_acs_response(request_data)
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    email = claims.get("email", "")
+    if not email:
+        raise HTTPException(status_code=400, detail="SAML response did not contain an email")
+
+    user = _get_or_create_sso_user(
+        db,
+        email=email,
+        full_name=claims.get("name", ""),
+        sub=claims.get("name_id", email),
+        provider="saml",
+    )
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated.")
+
+    jwt_token = create_access_token(data={"sub": str(user.id)})
+    return _SamlAcsResponse(access_token=jwt_token)
+
+
+@router.get("/saml/providers")
+def saml_provider_info():
+    """Return whether SAML 2.0 is configured and available."""
+    from app.modules.auth_billing.saml import _SAML_AVAILABLE, _is_configured
+
+    return {
+        "saml_library_available": _SAML_AVAILABLE,
+        "saml_configured": _is_configured(),
+        "idp_entity_id": getattr(settings, "SAML_IDP_ENTITY_ID", "") or None,
+        "sp_entity_id": getattr(settings, "SAML_SP_ENTITY_ID", "") or None,
+    }

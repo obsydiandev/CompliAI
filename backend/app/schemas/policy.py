@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ── PolicyRule ────────────────────────────────────────────────────────────────
@@ -44,6 +44,29 @@ class PolicyRuleRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── LLM Rule Generator (T4.4) ─────────────────────────────────────────────────
+
+
+class GenerateRuleRequest(BaseModel):
+    description: str = Field(
+        ...,
+        min_length=10,
+        max_length=2000,
+        description="Natural-language description of the compliance rule to generate.",
+        examples=["The Technical File must be reviewed at least every 14 days."],
+    )
+    severity: str = Field(
+        default="warning",
+        description="Severity to assign to the generated rule.",
+    )
+
+
+class GenerateRuleResponse(BaseModel):
+    suggested_name: str
+    condition: dict[str, Any]
+    description: str
 
 
 # ── ComplianceEvent ───────────────────────────────────────────────────────────

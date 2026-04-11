@@ -9,6 +9,10 @@ Org-level integration CRUD:
   POST   /organizations/{org_id}/integrations/{integration_id}/test
   POST   /organizations/{org_id}/integrations/{integration_id}/sync
 
+GitLab OAuth 2.0 (T3.2):
+  GET    /organizations/{org_id}/integrations/gitlab/authorize  → OAuth auth URL
+  POST   /organizations/{org_id}/integrations/gitlab/callback   → exchange code, save token
+
 System-level endpoints:
   POST  /systems/{system_id}/webhook          — CI/CD deployment webhook (T3.6)
   GET   /systems/{system_id}/deployments      — list deployment events
@@ -22,6 +26,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import OrgContext, get_current_active_user, get_org_context, require_role
@@ -36,6 +41,7 @@ from app.modules.integrations import (
     change_classifier,
     github_connector,
     gitlab_connector,
+    gitlab_oauth,
     metadata_mapper,
     mlflow_connector,
     report_parser,
@@ -215,6 +221,110 @@ def list_integrations(
     return [IntegrationRead.model_validate(c) for c in cfgs]
 
 
+# ── GitLab OAuth 2.0 endpoints (T3.2) ────────────────────────────────────────
+
+
+class _GitLabCallbackBody(BaseModel):
+    code: str
+    state: str
+    redirect_uri: str | None = None
+    integration_name: str = "GitLab (OAuth)"
+
+
+@org_router.get("/{org_id}/integrations/gitlab/authorize", tags=["integrations"])
+def gitlab_oauth_authorize(
+    redirect_uri: str | None = None,
+    ctx: OrgContext = Depends(require_role("admin", "ml_owner")),
+):
+    """Return the GitLab OAuth 2.0 authorization URL.
+
+    The frontend should redirect the browser to the returned ``auth_url``.
+    Store ``state`` in the session / localStorage to verify it on callback.
+    """
+    try:
+        state = gitlab_oauth.generate_state()
+        auth_url = gitlab_oauth.build_auth_url(state=state, redirect_uri=redirect_uri)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"auth_url": auth_url, "state": state}
+
+
+@org_router.post(
+    "/{org_id}/integrations/gitlab/callback",
+    response_model=IntegrationRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["integrations"],
+)
+async def gitlab_oauth_callback(
+    body: _GitLabCallbackBody,
+    ctx: OrgContext = Depends(require_role("admin", "ml_owner")),
+    db: Session = Depends(get_db),
+):
+    """Exchange the authorization code from GitLab for an access token.
+
+    Creates (or updates) a ``gitlab`` IntegrationConfig for the org,
+    storing the access token as credentials.
+    """
+    try:
+        token_data = await gitlab_oauth.exchange_code(
+            code=body.code,
+            redirect_uri=body.redirect_uri,
+        )
+    except Exception as exc:
+        logger.warning("GitLab OAuth code exchange failed: %s", exc)
+        raise HTTPException(
+            status_code=400, detail=f"GitLab OAuth code exchange failed: {exc}"
+        ) from exc
+
+    access_token = token_data.get("access_token", "")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="No access_token in GitLab response")
+
+    # Fetch user info to enrich the integration name
+    try:
+        user_info = await gitlab_oauth.fetch_user(access_token)
+        username = user_info.get("username", "")
+    except Exception:
+        username = ""
+
+    name = body.integration_name or f"GitLab — {username}" if username else "GitLab (OAuth)"
+
+    # Upsert: look for an existing OAuth GitLab integration for this org
+    existing = (
+        db.query(IntegrationConfig)
+        .filter(
+            IntegrationConfig.org_id == ctx.current_org.id,
+            IntegrationConfig.type == "gitlab",
+        )
+        .first()
+    )
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if existing:
+        existing.credentials = {"token": access_token, "auth_method": "oauth"}
+        existing.status = "connected"
+        existing.error_message = None
+        existing.last_sync_at = now
+        db.commit()
+        db.refresh(existing)
+        return IntegrationRead.model_validate(existing)
+
+    cfg = IntegrationConfig(
+        id=uuid.uuid4(),
+        org_id=ctx.current_org.id,
+        name=name,
+        type="gitlab",
+        credentials={"token": access_token, "auth_method": "oauth"},
+        config={},
+        status="connected",
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(cfg)
+    db.commit()
+    db.refresh(cfg)
+    return IntegrationRead.model_validate(cfg)
+
+
 @org_router.post(
     "/{org_id}/integrations",
     response_model=IntegrationRead,
@@ -368,6 +478,78 @@ def test_integration(
         "integration": IntegrationRead.model_validate(cfg),
         "result": result,
         "error": error,
+    }
+
+
+# ── Health check (T3.10) ─────────────────────────────────────────────────────
+
+
+@org_router.get(
+    "/{org_id}/integrations/{integration_id}/health",
+    tags=["integrations"],
+)
+def integration_health(
+    integration_id: uuid.UUID,
+    ctx: OrgContext = Depends(get_org_context),
+    db: Session = Depends(get_db),
+):
+    """Return a detailed health snapshot for a single integration.
+
+    Unlike ``/test`` (which performs a live connectivity check and mutates
+    status), this endpoint is **read-only** — it reports the persisted status
+    and metadata without making any external network calls.
+
+    Response fields
+    ---------------
+    status : str
+        Last known status: ``"connected"`` | ``"error"`` | ``"pending"``.
+    last_check_at : datetime | None
+        Timestamp of the last successful sync / test.
+    error_message : str | None
+        Last recorded error, if any.
+    connector_type : str
+        Integration type (github / gitlab / mlflow / wandb / webhook / ci_cd).
+    auth_method : str
+        ``"oauth"`` if the token was acquired via GitLab OAuth, else ``"pat"`` /
+        ``"api_key"`` depending on connector type.
+    details : dict
+        Connector-specific metadata (e.g. configured owner/repo for GitHub).
+    """
+    cfg = _get_integration_or_404(integration_id, ctx.current_org.id, db)
+    creds = cfg.credentials or {}
+    config = cfg.config or {}
+
+    # Determine auth method without exposing the secret
+    auth_method = "unknown"
+    if cfg.type in ("github", "gitlab"):
+        auth_method = creds.get("auth_method", "pat")
+    elif cfg.type == "mlflow":
+        auth_method = "token" if creds.get("token") else "unauthenticated"
+    elif cfg.type == "wandb":
+        auth_method = "api_key" if creds.get("api_key") else "unknown"
+    elif cfg.type in ("webhook", "ci_cd"):
+        auth_method = "secret" if creds.get("secret") else "none"
+
+    # Connector-specific detail summary (no secrets)
+    details: dict = {}
+    if cfg.type == "github":
+        details = {k: v for k, v in config.items() if k in ("owner", "repo")}
+    elif cfg.type == "gitlab":
+        details = {k: v for k, v in config.items() if k in ("base_url", "project_id")}
+    elif cfg.type == "mlflow":
+        details = {"base_url": config.get("base_url", "")}
+    elif cfg.type == "wandb":
+        details = {"entity": config.get("entity", ""), "project": config.get("project", "")}
+
+    return {
+        "integration_id": str(cfg.id),
+        "name": cfg.name,
+        "connector_type": cfg.type,
+        "status": cfg.status,
+        "auth_method": auth_method,
+        "last_check_at": cfg.last_sync_at,
+        "error_message": cfg.error_message,
+        "details": details,
     }
 
 

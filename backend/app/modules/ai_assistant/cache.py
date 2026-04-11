@@ -95,23 +95,38 @@ def hash_prompt(prompt: str) -> str:
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 
 _RATE_LIMIT_WINDOW = 60  # seconds
-# 20 requests per window per org — a burst guard for synchronous usage.
-# This is not the same as the monthly draft quota shown on billing plans
-# (which is enforced at the subscription level). Adjust per plan tier if needed.
-_RATE_LIMIT_MAX = 20  # requests per window per org
+
+# Requests per window per org, keyed by billing plan.
+# Starter: conservative burst guard; Pro: relaxed; Enterprise: effectively unlimited.
+_PLAN_RATE_LIMITS: dict[str, int] = {
+    "starter": 10,
+    "pro": 30,
+    "enterprise": 200,
+}
+_RATE_LIMIT_DEFAULT = 10  # fallback when plan is unknown
 
 
-def check_rate_limit(org_id: str) -> bool:
-    """Returns True if the request is allowed, False if rate-limited."""
+def check_rate_limit(org_id: str, plan: str = "starter") -> bool:
+    """Returns True if the request is allowed, False if rate-limited.
+
+    Parameters
+    ----------
+    org_id:
+        UUID of the organization (used as Redis key).
+    plan:
+        Billing plan of the organization — one of ``"starter"``, ``"pro"``,
+        or ``"enterprise"``.  Determines the per-window request cap.
+    """
     client = _get_redis()
     if not client:
         return True  # Allow if Redis unavailable
+    limit = _PLAN_RATE_LIMITS.get(plan, _RATE_LIMIT_DEFAULT)
     try:
         key = f"compliai:rl:{org_id}"
         current = client.incr(key)
         if current == 1:
             client.expire(key, _RATE_LIMIT_WINDOW)
-        return int(current) <= _RATE_LIMIT_MAX
+        return int(current) <= limit
     except Exception as exc:
         logger.debug("Rate limit check error: %s", exc)
         return True  # Allow on error

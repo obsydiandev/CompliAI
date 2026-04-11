@@ -103,3 +103,62 @@ def check_billing_access(org) -> None:
             "editing your Technical File."
         ),
     )
+
+
+# ── API key authentication (T6.4) ────────────────────────────────────────────
+
+import hashlib
+from datetime import UTC, datetime
+
+from fastapi import Header
+from fastapi.security.api_key import APIKeyHeader
+
+_api_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def get_org_via_api_key(
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    db=Depends(get_db),
+):
+    """Authenticate a request via an ``X-API-Key`` header.
+
+    Returns the Organization the key belongs to, or raises 401/403.
+    Used for public API access without a user JWT.
+    """
+    if not x_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required (X-API-Key header)",
+        )
+
+    from app.models.api_key import ApiKey
+
+    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
+    api_key = db.query(ApiKey).filter(ApiKey.key_hash == key_hash).first()
+
+    if not api_key or not api_key.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or revoked API key",
+        )
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if api_key.expires_at and api_key.expires_at < now:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="API key has expired",
+        )
+
+    # Update last_used_at (best-effort, non-blocking)
+    try:
+        api_key.last_used_at = now
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    from app.models.organization import Organization
+
+    org = db.query(Organization).filter(Organization.id == api_key.org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return org

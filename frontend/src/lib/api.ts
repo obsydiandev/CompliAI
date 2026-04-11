@@ -130,6 +130,11 @@ export const tfApi = {
       `/systems/${systemId}/technical-file/revisions/${revisionId}`,
       data
     ),
+  diffRevisions: (systemId: string, revisionId: string, otherRevisionId: string) =>
+    api.get<import('@/types').RevisionDiff[]>(
+      `/systems/${systemId}/technical-file/revisions/${revisionId}/diff`,
+      { params: { other_revision_id: otherRevisionId } }
+    ),
 }
 
 export const sectionApi = {
@@ -346,6 +351,63 @@ export const portfolioApi = {
 
 export const adminApi = {
   metrics: () => api.get<import('@/types').FounderMetrics>('/admin/metrics'),
+}
+
+export const pmmApi = {
+  get: (systemId: string) =>
+    api.get<import('@/types').PMMPlan>(`/systems/${systemId}/pmm/`),
+  update: (systemId: string, data: import('@/types').PMMPlanUpdate) =>
+    api.put<import('@/types').PMMPlan>(`/systems/${systemId}/pmm/`, data),
+  submitMetrics: (systemId: string, metrics: import('@/types').MetricEntry[]) =>
+    api.post<{ recorded_entries: number; total_log_entries: number; recorded_at: string }>(
+      `/systems/${systemId}/pmm/metrics`,
+      { metrics },
+    ),
+  listMetrics: (systemId: string) =>
+    api.get<import('@/types').MetricsLog>(`/systems/${systemId}/pmm/metrics`),
+  summary: (systemId: string) =>
+    api.get<import('@/types').PMMSummary>(`/systems/${systemId}/pmm/summary`),
+}
+
+export const llmUsageApi = {
+  getOrgUsage: (orgId: string, days = 30) =>
+    api.get<import('@/types').LLMUsageStats>(`/organizations/${orgId}/llm-usage`, {
+      params: { days },
+    }),
+}
+
+export const ruleGeneratorApi = {
+  generateRule: (orgId: string, description: string, severity = 'warning') =>
+    api.post<import('@/types').GeneratedRule>(
+      `/organizations/${orgId}/policies/generate-rule`,
+      { description, severity },
+    ),
+}
+
+export const alertConfigApi = {
+  get: (orgId: string) =>
+    api.get<import('@/types').AlertConfig>(`/organizations/${orgId}/policies/alert-config`),
+  update: (orgId: string, data: import('@/types').AlertConfig) =>
+    api.put<import('@/types').AlertConfig>(
+      `/organizations/${orgId}/policies/alert-config`,
+      data,
+    ),
+}
+
+export const apiKeyApi = {
+  list: (orgId: string) =>
+    api.get<import('@/types').ApiKeyRead[]>(`/organizations/${orgId}/api-keys`),
+  create: (orgId: string, data: { name: string; expires_in_days?: number | null }) =>
+    api.post<import('@/types').ApiKeyCreated>(`/organizations/${orgId}/api-keys`, data),
+  revoke: (orgId: string, keyId: string) =>
+    api.delete(`/organizations/${orgId}/api-keys/${keyId}`),
+}
+
+export const integrationHealthApi = {
+  health: (orgId: string, integrationId: string) =>
+    api.get<import('@/types').IntegrationHealth>(
+      `/organizations/${orgId}/integrations/${integrationId}/health`,
+    ),
 }
 
 export default api

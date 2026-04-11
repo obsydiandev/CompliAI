@@ -149,6 +149,7 @@ def stream_section_draft(
     annex_iii: bool,
     existing_content: dict,
     org_id: str | None = None,
+    plan: str = "starter",
 ) -> Generator[str, None, None]:
     """Stream a section draft as SSE events.
 
@@ -156,7 +157,7 @@ def stream_section_draft(
     The final event is ``data: [DONE]\\n\\n``.
     """
     # Check rate limit before starting stream
-    if org_id and not _cache.check_rate_limit(org_id):
+    if org_id and not _cache.check_rate_limit(org_id, plan=plan):
         yield 'data: {"error": "Rate limit exceeded. Please wait before generating another draft."}\n\n'
         return
 

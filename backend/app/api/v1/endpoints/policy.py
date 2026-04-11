@@ -15,6 +15,7 @@ Org-scoped (mounted under /organizations/{org_id}/policies):
   PUT    /{rule_id}                    — Update rule
   DELETE /{rule_id}                   — Delete rule
   POST   /seed-builtin                 — Install default built-in rules
+  POST   /generate-rule                — LLM: natural language → condition (T4.4)
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import OrgContext, get_current_active_user, get_org_context, require_role
@@ -31,7 +33,7 @@ from app.database import get_db
 from app.models.ai_system import AISystem
 from app.models.deployment import DeploymentEvent
 from app.models.evidence import EvidenceAttachment
-from app.models.policy import Alert, ComplianceEvent, PolicyRule
+from app.models.policy import Alert, ComplianceEvent, OrgAlertConfig, PolicyRule
 from app.models.technical_file import Section, TechnicalFile, TechnicalFileRevision
 from app.models.user import User
 from app.modules.annex_iv_core.completeness import (
@@ -42,11 +44,14 @@ from app.modules.annex_iv_core.schemas import SECTION_NAMES
 from app.modules.policy_engine import alert_dispatcher, bias_audit, shadow_validator
 from app.modules.policy_engine.builtin_rules import seed_builtin_rules
 from app.modules.policy_engine.rule_evaluator import build_system_snapshot, evaluate_rule
+from app.modules.policy_engine.rule_generator import generate_rule_from_text, suggest_rule_name
 from app.schemas.policy import (
     BiasAuditRequest,
     BiasAuditResponse,
     ComplianceEventRead,
     ComplianceHealthReport,
+    GenerateRuleRequest,
+    GenerateRuleResponse,
     PolicyRuleCreate,
     PolicyRuleRead,
     PolicyRuleUpdate,
@@ -110,6 +115,101 @@ def _sections_for_revision(revision_id: uuid.UUID, db: Session) -> list[Section]
 
 
 # ── Org-scoped policy rule endpoints ─────────────────────────────────────────
+
+
+# ── Alert notification configuration (T4.8) ──────────────────────────────────
+
+
+class _AlertConfigUpdate(BaseModel):
+    email_enabled: bool = False
+    email_recipients: list[str] = []
+    slack_enabled: bool = False
+    slack_webhook_url: str = ""
+    webhook_enabled: bool = False
+    webhook_url: str = ""
+    min_severity: str = "warning"
+
+
+@org_router.get("/alert-config", tags=["policy"])
+def get_alert_config(
+    ctx: OrgContext = Depends(get_org_context),
+    db: Session = Depends(get_db),
+):
+    """Return the alert notification configuration for this organisation."""
+    cfg = (
+        db.query(OrgAlertConfig)
+        .filter(OrgAlertConfig.org_id == ctx.current_org.id)
+        .first()
+    )
+    if not cfg:
+        return {
+            "email_enabled": False,
+            "email_recipients": [],
+            "slack_enabled": False,
+            "slack_webhook_url": "",
+            "webhook_enabled": False,
+            "webhook_url": "",
+            "min_severity": "warning",
+        }
+    return {
+        "email_enabled": cfg.email_enabled,
+        "email_recipients": cfg.email_recipients or [],
+        "slack_enabled": cfg.slack_enabled,
+        "slack_webhook_url": cfg.slack_webhook_url or "",
+        "webhook_enabled": cfg.webhook_enabled,
+        "webhook_url": cfg.webhook_url or "",
+        "min_severity": cfg.min_severity,
+    }
+
+
+@org_router.put("/alert-config", tags=["policy"])
+def update_alert_config(
+    body: _AlertConfigUpdate,
+    ctx: OrgContext = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    """Create or update the alert notification configuration for this organisation."""
+    allowed_severities = {"info", "warning", "blocking"}
+    if body.min_severity not in allowed_severities:
+        raise HTTPException(
+            status_code=400,
+            detail=f"min_severity must be one of: {sorted(allowed_severities)}",
+        )
+
+    cfg = (
+        db.query(OrgAlertConfig)
+        .filter(OrgAlertConfig.org_id == ctx.current_org.id)
+        .first()
+    )
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if cfg is None:
+        cfg = OrgAlertConfig(
+            id=uuid.uuid4(),
+            org_id=ctx.current_org.id,
+            created_at=now,
+        )
+        db.add(cfg)
+
+    cfg.email_enabled = body.email_enabled
+    cfg.email_recipients = body.email_recipients or []
+    cfg.slack_enabled = body.slack_enabled
+    cfg.slack_webhook_url = body.slack_webhook_url or None
+    cfg.webhook_enabled = body.webhook_enabled
+    cfg.webhook_url = body.webhook_url or None
+    cfg.min_severity = body.min_severity
+    cfg.updated_at = now
+
+    db.commit()
+    db.refresh(cfg)
+    return {
+        "email_enabled": cfg.email_enabled,
+        "email_recipients": cfg.email_recipients or [],
+        "slack_enabled": cfg.slack_enabled,
+        "slack_webhook_url": cfg.slack_webhook_url or "",
+        "webhook_enabled": cfg.webhook_enabled,
+        "webhook_url": cfg.webhook_url or "",
+        "min_severity": cfg.min_severity,
+    }
 
 
 @org_router.get("", response_model=list[PolicyRuleRead])
@@ -193,6 +293,45 @@ def seed_builtin(
     created = seed_builtin_rules(ctx.current_org.id, db)
     db.commit()
     return created
+
+
+@org_router.post("/generate-rule", response_model=GenerateRuleResponse)
+def generate_rule(
+    payload: GenerateRuleRequest,
+    ctx: OrgContext = Depends(require_role("admin", "ml_owner")),
+    db: Session = Depends(get_db),
+):
+    """Convert natural-language policy text to a structured rule condition (T4.4).
+
+    Uses OpenAI to parse the description and returns a condition dict plus a
+    suggested rule name, which the caller can then POST to ``/policies`` to
+    persist as a custom rule.
+    """
+    from app.config import settings
+
+    if not settings.OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="AI rule generation requires OPENAI_API_KEY to be configured.",
+        )
+
+    try:
+        condition = generate_rule_from_text(
+            payload.description,
+            model=settings.OPENAI_MODEL,
+            api_key=settings.OPENAI_API_KEY,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    suggested_name = suggest_rule_name(payload.description, condition)
+    return GenerateRuleResponse(
+        suggested_name=suggested_name,
+        condition=condition,
+        description=payload.description,
+    )
 
 
 # ── System-scoped compliance endpoints ───────────────────────────────────────
@@ -399,17 +538,52 @@ def run_checks(
                 events_created += 1
                 row["event_id"] = str(event.id)
 
-                # Dispatch alert
+                # Build alert payload once
+                alert_payload = {
+                    "rule_name": rule.name,
+                    "message": detail,
+                    "severity": rule.severity,
+                    "system_name": system.name,
+                }
+
+                # Dispatch in-app alert (always)
                 alert_dispatcher.dispatch_alert(
                     channel="in_app",
                     recipient=None,
-                    payload={
-                        "rule_name": rule.name,
-                        "message": detail,
-                        "severity": rule.severity,
-                        "system_name": system.name,
-                    },
+                    payload=alert_payload,
                 )
+
+                # Dispatch via configured channels if alert config exists and
+                # severity meets the minimum threshold
+                _sev_order = {"info": 0, "warning": 1, "blocking": 2}
+                alert_cfg = (
+                    db.query(OrgAlertConfig)
+                    .filter(OrgAlertConfig.org_id == system.org_id)
+                    .first()
+                )
+                if alert_cfg:
+                    rule_sev = _sev_order.get(rule.severity, 0)
+                    min_sev = _sev_order.get(alert_cfg.min_severity, 1)
+                    if rule_sev >= min_sev:
+                        if alert_cfg.email_enabled:
+                            for recipient in (alert_cfg.email_recipients or []):
+                                alert_dispatcher.dispatch_alert(
+                                    channel="email",
+                                    recipient=recipient,
+                                    payload=alert_payload,
+                                )
+                        if alert_cfg.slack_enabled and alert_cfg.slack_webhook_url:
+                            alert_dispatcher.dispatch_alert(
+                                channel="slack",
+                                recipient=alert_cfg.slack_webhook_url,
+                                payload=alert_payload,
+                            )
+                        if alert_cfg.webhook_enabled and alert_cfg.webhook_url:
+                            alert_dispatcher.dispatch_alert(
+                                channel="webhook",
+                                recipient=alert_cfg.webhook_url,
+                                payload=alert_payload,
+                            )
 
         results.append(row)
 

@@ -90,3 +90,36 @@ class Alert(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     compliance_event = relationship("ComplianceEvent", back_populates="alerts")
+
+
+class OrgAlertConfig(Base):
+    """Per-organization alert notification configuration (T4.8)."""
+
+    __tablename__ = "org_alert_configs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    # Email channel
+    email_enabled = Column(Boolean, default=False, nullable=False)
+    email_recipients = Column(JSON, nullable=True)  # list[str]
+    # Slack channel
+    slack_enabled = Column(Boolean, default=False, nullable=False)
+    slack_webhook_url = Column(String(500), nullable=True)
+    # Generic webhook channel
+    webhook_enabled = Column(Boolean, default=False, nullable=False)
+    webhook_url = Column(String(500), nullable=True)
+    # Minimum severity to trigger an alert: "info" | "warning" | "blocking"
+    min_severity = Column(
+        Enum("info", "warning", "blocking", name="alert_min_severity_enum"),
+        default="warning",
+        nullable=False,
+    )
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    org = relationship("Organization")
